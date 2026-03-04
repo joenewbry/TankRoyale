@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 24
+  productGUID: a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6
+  companyName: DefaultCompany
+  productName: TankRoyale
+  defaultScreenWidth: 1920
+  defaultScreenHeight: 1080
+  activeInputHandler: 2
+  bundleVersion: 0.1
+  applicationIdentifier:
+    Android: com.DefaultCompany.TankRoyale
+    iPhone: com.DefaultCompany.TankRoyale
+  AndroidMinSdkVersion: 22
+  AndroidTargetSdkVersion: 0
+  webGLMemorySize: 32
+  webGLExceptionSupport: 1
+  webGLCompressionFormat: 1
+  webGLLinkerTarget: 1
+  webGLPowerPreference: 2
+  scriptingDefineSymbols: {}
+  gcIncremental: 1
+  allowUnsafeCode: 0
