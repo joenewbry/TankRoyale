@@ -1,376 +1,300 @@
-# Tank Royale — Technical Architecture
+# Tank Royale — Technical Architecture (Unity 3D v2)
 
-## 1) Architecture Goals & Constraints
+## 1) Core Technical Direction
 
-### Product Goals
-- Fast-paced top-down tank battles on a **30x30 destructible arena grid**.
-- Cross-platform release: **WebGL, iOS, Android, Xbox**.
-- MVP gameplay loop:
-  - 1 player + 3 AI opponents
-  - Single weapon baseline
-  - 3 power-ups (Ricochet, Armor Bubble, Block Breaker)
-- Support **offline mode first**, then online multiplayer as a follow-up phase.
+Tank Royale is a **Unity 3D** top-down tank game using real 3D prefabs from:
+- `toontankslowpoly.unitypackage`
+- `assethunts_gamedev_starter_kit_tanks_v100.unitypackage`
 
-### Hard Constraints (Driving Technical Choices)
-- **WebGL + mobile performance** is the primary constraint.
-- Low-end devices must still run at playable framerates.
-- Memory footprint must be controlled (especially browser/mobile).
-- Multiplayer stack must work across browser + mobile + console (future phase).
+This document replaces prior 2D placeholder architecture. The project is now explicitly:
+- **3D world + 3D prefabs**
+- **Top-down orthographic camera**
+- **Grid-based gameplay on a 30x30 arena**
+- **WebGL + iOS + Android targets**
 
 ---
 
-## 2) Recommended Tech Stack
+## 2) Engine, Render Pipeline, and Platform Targets
 
-- **Unity LTS (2022.3+ or 6 LTS when stable for target SDKs)**
-- **URP** (single forward renderer, mobile/WebGL-tuned)
-- **New Input System**
-- **Addressables** for content streaming and variant loading
-- **Photon Fusion** (recommended over NGO for this project)
+## 2.1 Engine
+- Unity LTS (2022.3+ recommended)
+- Scripting backend: IL2CPP for shipping builds
 
-### Why Photon Fusion (Recommendation)
-For Tank Royale, Photon Fusion is a better fit than Unity Netcode (NGO) because:
-1. Cross-platform room/match flow is mature and fast to ship.
-2. Browser compatibility via WebSockets is proven.
-3. Built-in replication patterns (networked vars/RPC/snapshots) reduce custom backend work.
-4. Better fit for future online rollout with minimal custom infra.
+## 2.2 Render Pipeline
+- **URP (Universal Render Pipeline)**
+- Forward renderer
+- Mobile-friendly shader variants only
+- Prefer single-directional light + baked/cheap lighting setup
 
-> If team prefers Unity-native stack long-term, NGO is viable, but shipping risk is higher for rapid cross-platform WebGL/mobile rollout.
+## 2.3 Platforms
+- **WebGL** (primary browser target)
+- **iOS**
+- **Android**
+
+## 2.4 Performance Goal
+- **60 FPS target in WebGL gameplay scene** on reasonable desktop hardware
+- Graceful quality scaling on mobile while preserving gameplay parity
 
 ---
 
-## 3) Unity Project Structure
+## 3) Scene and World Architecture
+
+## 3.1 Camera Model (Top-Down Orthographic)
+- Main gameplay camera:
+  - Projection: **Orthographic**
+  - Orientation: top-down, pitched to view arena cleanly
+  - Follows player tank with smoothing
+- Camera script keeps gameplay centered while clamping to arena bounds
+
+Recommended transform baseline (tunable):
+- Position: `(15, 28, 15)` for 30x30 map center
+- Rotation: `(90, 0, 0)` pure top-down OR slight tilt if desired
+- Orthographic size tuned to show tactical area around player
+
+## 3.2 Arena Grid
+- Arena size: **30 x 30 cells**
+- Floor generated from:
+  - `Assets/AssetHunts!/GameDev Starter Kit - Tanks/.../3D_Tile_Ground_01.prefab`
+- One tile prefab instance per cell (or chunked instancing strategy)
+- Grid origin at world `(0,0,0)` and deterministic index mapping:
+  - `index = x + y * width`
+
+Data model:
+```csharp
+public struct GridCoord { public int x, y; }
+public const int GridWidth = 30;
+public const int GridHeight = 30;
+```
+
+---
+
+## 4) Tank Entity Architecture
+
+## 4.1 Required Hierarchy
+Each tank prefab is normalized to:
 
 ```text
-Unity/TankRoyale/
-├─ Assets/
-│  ├─ _Project/
-│  │  ├─ Art/
-│  │  │  ├─ Environment/
-│  │  │  ├─ Tanks/
-│  │  │  ├─ VFX/
-│  │  │  └─ UI/
-│  │  ├─ Audio/
-│  │  ├─ Config/
-│  │  │  ├─ ScriptableObjects/
-│  │  │  ├─ Tuning/
-│  │  │  └─ BuildProfiles/
+TankRoot
+├── TankBody   (mesh/collider, movement reference)
+└── Turret     (child transform, rotates independently)
+```
+
+`TankRoot` owns gameplay components:
+- `TankMotor` (movement)
+- `TankHealth`
+- `TankWeaponController`
+- `TankInputAdapter` (player or AI)
+
+## 4.2 Movement
+- Movement is body-driven on XZ plane
+- Rotation for hull is independent from turret aim
+- Rigidbody-based or kinematic controller allowed; must avoid jitter in WebGL
+
+## 4.3 Turret Aiming (Independent)
+- Turret rotates independently of hull
+- Mouse world-point projection via raycast onto ground plane
+- Apply **Y-axis rotation only** for top-down behavior
+
+Pseudo-flow:
+1. Screen mouse position -> camera ray
+2. Intersect with XZ ground plane
+3. Compute direction from turret pivot to hit point
+4. Rotate turret around Y only toward direction
+
+---
+
+## 5) Combat and Projectile System
+
+## 5.1 Projectile Base Prefab
+Default shot uses:
+- `Weapon_Tank_Shell_01.prefab`
+
+Runtime wrapper component:
+- `ShellProjectile`
+  - speed
+  - lifetime
+  - damage
+  - owner team/id
+  - collision mask
+
+## 5.2 Projectile Lifecycle
+- Spawn from muzzle transform on turret
+- Move forward in world space (XZ plane)
+- Hit resolution against tanks, crates, and world blockers
+- Return object to pool on hit/timeout
+
+## 5.3 Pooling (Mandatory)
+- No runtime Instantiate/Destroy in combat loop
+- `ProjectilePool` prewarms shell instances at match start
+- Pool size configurable by max fire rate × alive time × active tanks
+
+---
+
+## 6) Destructible Environment System
+
+## 6.1 Destructible Block Prefabs
+Use these as destructibles:
+- `Prop_Crate_01.prefab` ... `Prop_Crate_07.prefab`
+
+## 6.2 Health Model
+Each destructible crate has:
+- `maxHitPoints`
+- `currentHitPoints`
+- optional damage state visuals (intact/damaged/destroyed)
+
+On projectile impact:
+1. Apply damage
+2. If HP <= 0: mark cell walkable, disable/destroy crate visual via pool/state system
+3. Emit destruction SFX event
+
+## 6.3 Grid Integration
+- Crates occupy grid cells
+- Destroyed crates update occupancy in:
+  - collision lookup
+  - AI pathfinding walkability map
+
+---
+
+## 7) AI Navigation and Pathfinding
+
+## 7.1 Pathfinding Choice
+- **Custom grid-based A\***
+- **Do not use Unity NavMesh** (too heavy/unnecessary for this WebGL+mobile topology)
+
+## 7.2 Grid Graph
+- 30x30 nodes mapped directly to arena cells
+- Node state:
+  - walkable / blocked
+  - movement cost
+  - optional dynamic danger score
+
+## 7.3 A* Implementation Notes
+- Heuristic: Manhattan or octile (depending on movement model)
+- Binary heap priority queue for open set
+- Replan on interval or when path invalidated by destroyed/added obstacles
+- Keep allocations out of hot path (reuse buffers/lists)
+
+## 7.4 AI Tank Loop
+- Sense player + obstacles
+- Request path to tactical target cell
+- Follow waypoints with steering
+- Aim turret independently and fire when line-of-sight is valid
+
+---
+
+## 8) Input and Control Architecture
+
+## 8.1 Player Input
+- Unity Input System action map:
+  - Move (WASD / stick)
+  - Aim (mouse position / right stick)
+  - Fire
+
+## 8.2 Separation of Concerns
+- `ITankInputSource` abstraction for:
+  - human player
+  - AI controller
+- Movement and firing systems consume generic intent, not raw devices
+
+---
+
+## 9) Audio Architecture
+
+## 9.1 Source of Audio Assets
+Asset packs contain no audio; all SFX/music sourced from:
+- **OpenGameArt (CC0)**
+
+Required minimum SFX set:
+- engine loop
+- shell fire
+- shell impact/explosion
+- crate damage/destruction
+- pickup and UI feedback
+
+## 9.2 Runtime Audio System
+Use a central **AudioManager singleton**:
+- global mixer routing
+- category volume (SFX, music, UI)
+- one-shot and looping API
+
+Use **pooled AudioSources** for one-shots:
+- `AudioSourcePool` prewarms channels
+- Reuse sources to avoid Instantiate/Destroy spikes
+- 3D spatial audio for world SFX, 2D for UI
+
+---
+
+## 10) Project Structure (Recommended)
+
+```text
+Unity/TankRoyale/Assets/
+├─ _Project/
+│  ├─ Scenes/
+│  │  ├─ Boot.unity
+│  │  └─ Arena.unity
+│  ├─ Prefabs/
+│  │  ├─ Tanks/
+│  │  ├─ Projectiles/
+│  │  ├─ Environment/
+│  │  └─ Audio/
+│  ├─ Scripts/
 │  │  ├─ Core/
-│  │  │  ├─ Bootstrap/
-│  │  │  ├─ Services/
-│  │  │  ├─ Save/
-│  │  │  └─ Utilities/
-│  │  ├─ Gameplay/
-│  │  │  ├─ Tanks/
-│  │  │  ├─ Weapons/
-│  │  │  ├─ Projectiles/
-│  │  │  ├─ PowerUps/
-│  │  │  ├─ Terrain/
-│  │  │  └─ AI/
-│  │  ├─ Networking/
-│  │  │  ├─ Fusion/
-│  │  │  ├─ Replication/
-│  │  │  └─ Prediction/
-│  │  ├─ Input/
-│  │  ├─ UI/
-│  │  ├─ Scenes/
-│  │  │  ├─ Boot.unity
-│  │  │  ├─ MainMenu.unity
-│  │  │  ├─ Arena.unity
-│  │  │  └─ ChallengeMode.unity
-│  │  └─ Tests/
-│  │     ├─ EditMode/
-│  │     └─ PlayMode/
-│  ├─ ThirdParty/
-│  │  ├─ CartoonTankPack/
-│  │  └─ PhotonFusion/
-│  └─ AddressableAssetsData/
-├─ Packages/
-├─ ProjectSettings/
-└─ Builds/
+│  │  ├─ Grid/
+│  │  ├─ Tanks/
+│  │  ├─ AI/
+│  │  ├─ Combat/
+│  │  ├─ Destructibles/
+│  │  └─ Audio/
+│  ├─ ScriptableObjects/
+│  └─ Materials/
+├─ ThirdParty/
+│  ├─ ToonTanksLowpoly/
+│  └─ GameDevStarterKitTanks/
+└─ Settings/
 ```
 
-### Assembly Definition Strategy
-Use `.asmdef` per major domain:
-- `TankRoyale.Core`
-- `TankRoyale.Gameplay`
-- `TankRoyale.Networking`
-- `TankRoyale.UI`
-- `TankRoyale.Input`
-- `TankRoyale.Tests`
-
-This keeps compile times low and enforces clean dependencies.
+Rule: third-party assets remain read-only; create project-owned prefab variants under `_Project/`.
 
 ---
 
-## 4) Cross-Platform Build Targets
+## 11) Performance Rules (Non-Negotiable)
 
-## 4.1 Build Matrix
+1. **Object pooling for bullets/projectiles** (and recommended for impact VFX/audio emitters)
+2. **No GC allocations in `Update` / `FixedUpdate` / tight AI loops**
+3. Cache component references at initialization
+4. Avoid LINQ and per-frame string operations in gameplay code
+5. Use preallocated collections for A* and combat queries
+6. Keep physics layers/masks tight to reduce broadphase overhead
+7. Mobile shader variants only; avoid expensive post-processing
 
-| Platform | Backend | Target FPS | Quality Tier | Primary Input |
-|---|---|---:|---|---|
-| WebGL | IL2CPP (WASM) | 30–60 (adaptive) | WebLow/WebMedium | Keyboard + mouse, gamepad |
-| iOS | IL2CPP ARM64 | 30 default, 60 high-end | MobileLow/MobileMedium | Touch + optional controller |
-| Android | IL2CPP ARM64 | 30 default, 60 high-end | MobileLow/MobileMedium | Touch + optional controller |
-| Xbox | IL2CPP / platform SDK | 60 | ConsoleHigh | Gamepad |
-
-## 4.2 Platform-Specific Notes
-
-### WebGL (Highest Risk Target)
-- Use **WebSocket networking only**.
-- Avoid heavy runtime memory spikes (browser tab kills on OOM).
-- Keep initial download small (Addressables + compressed textures/audio).
-- Avoid features with poor WebGL support (thread-heavy systems, excessive post-processing).
-- Prefer simple shaders and minimal overdraw.
-
-### iOS/Android
-- Default to **30 FPS** on low/mid devices; unlock 60 for capable hardware.
-- Use aggressive texture compression and atlas strategy.
-- Use low-poly collision meshes and pooled projectiles.
-- Thermal management: lower quality dynamically when sustained frame time rises.
-
-### Xbox
-- Enable enhanced visuals (higher texture budget, particles, and shadows) while preserving gameplay parity.
-- Maintain identical gameplay simulation to avoid cross-platform desync.
-
-## 4.3 Build Profiles & Defines
-- `USE_PHOTON_FUSION`
-- `PLATFORM_WEBGL`, `PLATFORM_MOBILE`, `PLATFORM_XBOX`
-- `OFFLINE_MODE` for AI-only challenge mode
+Validation targets:
+- Stable frame-time under combat load
+- No recurring GC spikes during continuous firing
+- WebGL build sustains near 60 FPS in representative arena scenario
 
 ---
 
-## 5) Networking Model (Photon Fusion)
+## 12) Implementation Sequence
 
-## 5.1 Authority Model
-- **Server-authoritative simulation** (host or dedicated authority in Fusion terms).
-- Clients submit input; authority validates movement/shots/power-up pickups.
-- Prevents client-side cheating and keeps destructible terrain consistent.
-
-## 5.2 Simulation & Tick
-- Network tick: **20–30 Hz** (start at 20 Hz for WebGL/mobile safety).
-- Rendering interpolation on clients.
-- Keep physics deterministic-enough via fixed timestep and simplified collision logic.
-
-## 5.3 Replicated Entities
-- Tanks: position/rotation/HP/active effects
-- Projectiles: spawn seed, transform, bounce count
-- Terrain cells: state changes only (delta replication, not full grid each tick)
-- Power-up spawners: spawn state, cooldown, pickup ownership
-
-## 5.4 Bandwidth Strategy
-- Delta-compress only changed values.
-- Send terrain updates as compact `{cellIndex, newState}` events.
-- Avoid per-frame RPC spam for VFX/SFX; derive cosmetic effects locally from authoritative events.
-
-## 5.5 Offline/Online Shared Code
-Use same gameplay services in both modes:
-- `IMatchSimulation`
-- `ITerrainService`
-- `IPowerUpService`
-
-Offline mode runs local simulation + AI; online mode swaps in Fusion replication adapters.
+1. Set project to URP + platform quality profiles (WebGL/iOS/Android)
+2. Build 30x30 floor generator using `3D_Tile_Ground_01.prefab`
+3. Normalize tank prefab hierarchy (`TankRoot > TankBody + Turret`)
+4. Implement mouse-to-world turret aim (Y-axis only)
+5. Integrate `Weapon_Tank_Shell_01.prefab` with pooled projectile system
+6. Add crate destructible system using `Prop_Crate_01-07.prefab` + HP
+7. Implement grid occupancy + custom A* for AI tanks
+8. Add AudioManager singleton + pooled AudioSources + CC0 SFX import
+9. Profile WebGL and mobile builds; eliminate allocations in hot loops
 
 ---
 
-## 6) Asset Pipeline (Cartoon Tank Pack)
+## Final Architecture Decision Summary
 
-## 6.1 Ingestion
-1. Import raw pack into `Assets/ThirdParty/CartoonTankPack` (read-only).
-2. Create project-owned prefabs/material variants under `Assets/_Project/Art/...`.
-3. Never modify third-party source files directly.
-
-## 6.2 Optimization Pass
-- Reduce oversized textures; generate platform-specific import settings.
-- Build atlases for UI and repeating environment props.
-- Ensure meshes are marked Read/Write disabled unless needed.
-- Enable GPU instancing where materials permit.
-- Strip unused animations/material variants.
-
-## 6.3 Addressables Layout
-- `label:core` (always loaded: tanks, UI, base arena)
-- `label:arena_theme_x` (optional map skins)
-- `label:vfx_high` (console/high-end only)
-
-This keeps WebGL/mobile first-load small and enables quality-tier content.
-
----
-
-## 7) Input Handling Per Platform
-
-Use **Unity Input System** with action maps:
-- `Gameplay`: Move, Aim, Fire, UsePower
-- `UI`: Navigate, Submit, Back, Pause
-
-## 7.1 Desktop/WebGL
-- Keyboard: WASD move
-- Mouse: aim turret
-- Mouse/Space: fire
-- Gamepad support enabled
-
-## 7.2 Mobile (iOS/Android)
-- Left virtual joystick: movement
-- Right side drag zone or stick: aiming
-- Fire button + power-up button
-- Optional auto-fire assist when aim is stable
-
-## 7.3 Xbox
-- Left stick move, right stick aim
-- RT fire, LB/RB power-up
-- Full menu/controller navigation
-
-## 7.4 Input Abstraction
-Gameplay reads from `IPlayerInputSource`, not directly from device APIs. This allows:
-- same controller logic for AI/human/network ghost players
-- easy test automation in PlayMode tests
-
----
-
-## 8) Performance Strategy (WebGL + Mobile First)
-
-## 8.1 Budgets
-- **WebGL memory target:** <= 220 MB runtime
-- **Mobile memory target:** <= 300 MB low-end, <= 450 MB mid/high
-- **CPU frame budget (30 FPS):** 33.3 ms total
-- **CPU frame budget (60 FPS):** 16.6 ms total
-- Keep draw calls and overdraw tightly controlled
-
-## 8.2 Rendering
-- URP with minimal renderer features
-- Baked lighting where possible; limit real-time lights
-- Disable soft shadows on low tiers
-- Avoid full-screen post-processing on WebGL/mobile low tiers
-- Use LOD groups for complex props (if any)
-
-## 8.3 Gameplay Runtime
-- Object pool for projectiles, explosions, floating UI text
-- No per-frame allocations in hot paths (`Update`, `FixedUpdate`)
-- Burst/Jobs only where proven beneficial and platform-safe
-- Prefer simple colliders and fast hit checks (ray/sphere casts)
-
-## 8.4 Terrain System Optimization
-- Store 30x30 grid in compact arrays (`byte`/`ushort` states)
-- Batch mesh updates by chunk (e.g., 10x10) instead of rebuilding whole arena
-- Update nav/AI blockers only when cells change
-- Network only changed cells
-
-## 8.5 Adaptive Quality Controller
-Runtime scaler monitors frame time and adjusts:
-- shadow quality
-- particle count
-- render scale
-- target frame rate (60 -> 30 fallback)
-
-Especially important for thermal throttling on mobile.
-
----
-
-## 9) Power-Ups Implementation (Code Architecture)
-
-## 9.1 Data-Driven Definitions
-Use ScriptableObjects:
-
-- `PowerUpDefinition`
-  - `id`
-  - `durationSeconds`
-  - `icon`
-  - `stackPolicy`
-  - `effectType`
-
-## 9.2 Runtime Contracts
-
-```csharp
-public interface IPowerUpEffect
-{
-    void OnApply(TankContext tank);
-    void OnRemove(TankContext tank);
-    void OnBeforeShot(ref ProjectileSpec spec);
-    void OnDamageTaken(ref DamageContext damage);
-}
-```
-
-`TankPowerUpController` manages active effects with authoritative timers.
-
-## 9.3 Specific Effects
-- **Ricochet Bullets**: sets `ProjectileSpec.MaxBounces = N`.
-- **Armor Bubble**: grants `shieldCharges = 1`; first valid hit consumes charge.
-- **Block Breaker**: projectile gets `canBreakDestructible = true`; applies terrain damage on collision.
-
-## 9.4 Spawn/Pickup System
-- `PowerUpSpawner` with weighted random table and cooldown windows.
-- Spawn locations validated against blocked cells and tank proximity.
-- On pickup, authority assigns effect and replicates event.
-
----
-
-## 10) Destructible Terrain Implementation (Code Architecture)
-
-## 10.1 Grid Data Model
-
-```csharp
-public enum CellType : byte { Empty, Solid, Destructible }
-
-public struct TerrainCell
-{
-    public CellType Type;
-    public byte HitPoints; // 0..N
-}
-```
-
-- Arena stored as `TerrainCell[30,30]`.
-- Optional flattened index for network packets: `index = x + y * width`.
-
-## 10.2 Damage Flow
-1. Authoritative projectile impact resolves collision.
-2. If target cell is destructible, decrement HP.
-3. If HP <= 0: set cell to Empty and emit `CellDestroyed(index)`.
-4. Clients receive event and update visuals/collision for that cell/chunk.
-
-## 10.3 Visual/Collision Update
-- Keep static base floor mesh.
-- Destructible blocks rendered as pooled instances keyed by cell index.
-- On destruction: disable instance + collider (no full-scene rebuild).
-
-## 10.4 AI Integration
-- AI pathing grid references same terrain state.
-- Recompute only affected local regions after cell destruction.
-
----
-
-## 11) Testing & Validation
-
-- **Unit tests**: power-up timers, projectile modifiers, terrain damage rules.
-- **PlayMode tests**: offline match loop, AI + terrain interactions.
-- **Network tests**: late join, packet loss simulation, reconnect behavior.
-- **Performance gates**:
-  - WebGL: test on low-spec laptop/browser
-  - Android: test on low-end device class
-  - iOS: older supported iPhone model
-
-Exit criteria for MVP:
-- Stable 30 FPS on low-end mobile/web target scene.
-- No major memory spikes during 10-minute match session.
-- Terrain + power-up state remains consistent between authority and clients.
-
----
-
-## 12) Delivery Phasing
-
-### Phase A (MVP Offline First)
-- Core tank movement/combat
-- AI opponents
-- Terrain destruction
-- 3 power-ups
-- WebGL + mobile builds
-
-### Phase B (Online Multiplayer)
-- Photon room flow + matchmaking
-- Authoritative replication
-- Reconnect/host migration strategy
-- Cross-platform QA hardening
-
----
-
-## Final Architectural Notes
-- Build for **WebGL and low-end mobile first**, then scale visual fidelity upward for Xbox/high-end.
-- Keep gameplay systems deterministic and data-driven so offline and online share the same core logic.
-- Treat destructible terrain and power-up replication as critical-path systems for both performance and net consistency.
+- Tank Royale is a **Unity 3D** game, not 2D.
+- Arena is a **30x30 3D tile grid** built from `3D_Tile_Ground_01.prefab`.
+- Tanks use split body/turret hierarchy with **independent turret aiming**.
+- AI navigation is **custom grid A\*** (no NavMesh).
+- Destructibles are crate prefabs with HP and grid-state updates.
+- Projectile baseline is `Weapon_Tank_Shell_01.prefab` with pooling.
+- Audio uses OpenGameArt CC0 assets via AudioManager + AudioSource pools.
+- Shipping targets: **WebGL, iOS, Android on URP**, optimized for mobile/WebGL performance and 60 FPS WebGL goal.
