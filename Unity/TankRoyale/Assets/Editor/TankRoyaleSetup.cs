@@ -120,6 +120,13 @@ public static class TankRoyaleSetup
         player.transform.position = new Vector3(2f, 0f, 2f);
         player.tag = "Player";
         player.name = "PlayerTank";
+        // Rigidbody — required for TankController.MovePosition
+        var rb = player.GetComponent<Rigidbody>() ?? player.AddComponent<Rigidbody>();
+        rb.useGravity = false;
+        rb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
         if (player.GetComponent<TankController>() == null)
             player.AddComponent<TankController>();
         var weapon = player.GetComponent<WeaponController>() ?? player.AddComponent<WeaponController>();
@@ -145,6 +152,11 @@ public static class TankRoyaleSetup
             e.transform.position = pos;
             e.tag = "Enemy";
             e.name = ename;
+            var erb = e.GetComponent<Rigidbody>() ?? e.AddComponent<Rigidbody>();
+            erb.useGravity = false;
+            erb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+            erb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            erb.interpolation = RigidbodyInterpolation.Interpolate;
             if (e.GetComponent<AITankController>() == null)
                 e.AddComponent<AITankController>();
         }
@@ -289,6 +301,12 @@ public static class TankRoyaleSetup
                 playerTank.tag = "Player";
                 playerTank.name = "PlayerTank";
 
+                var prb = playerTank.GetComponent<Rigidbody>() ?? playerTank.AddComponent<Rigidbody>();
+                prb.useGravity = false;
+                prb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+                prb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+                prb.interpolation = RigidbodyInterpolation.Interpolate;
+
                 if (playerTank.GetComponent<TankController>() == null)
                 {
                     playerTank.AddComponent<TankController>();
@@ -320,6 +338,11 @@ public static class TankRoyaleSetup
                         enemyObject = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
                     }
 
+                    var erRb = enemyObject.GetComponent<Rigidbody>() ?? enemyObject.AddComponent<Rigidbody>();
+                    erRb.useGravity = false;
+                    erRb.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+                    erRb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+                    erRb.interpolation = RigidbodyInterpolation.Interpolate;
                     enemyObject.AddComponent<AITankController>();
                 }
 
