@@ -23,3 +23,14 @@ UserSettings/
 
 # macOS
 .DS_Store
+
+# Asset packs (large binaries, keep locally only)
+assets/packs/*.unitypackage
+assets/packs/*.meta
+assets/*.meta
+assets/AssetHunts!/
+assets/PolygonalStudios/
+
+# Agent worktrees and updates
+.worktrees/
+updates/
