@@ -8,15 +8,18 @@ namespace TankRoyale.Gameplay
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(Rigidbody))]
+    [RequireComponent(typeof(WeaponController))]
     public class TankController : MonoBehaviour
     {
         private static readonly Plane GroundPlane = new Plane(Vector3.up, Vector3.zero);
+
+        [Header("Identity")]
+        [SerializeField] private string playerId;
 
         [Header("References")]
         [SerializeField] private Transform tankBody;
         [SerializeField] private Transform turret;
         [SerializeField] private Transform firePoint;
-        [SerializeField] private GameObject projectilePrefab;
         [SerializeField] private Camera aimCamera;
 
         [Header("Movement")]
@@ -26,16 +29,31 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float rotationSpeed = 360f;
         [SerializeField] private float turretRotationSpeed = 540f;
 
+        [Header("Health")]
+        [SerializeField] private int maxHealth = 3;
+
         private Rigidbody _rigidbody;
         private Camera _cachedCamera;
         private Vector2 _moveInput;
+        private WeaponController _weaponController;
+        private int currentHealth;
 
         public Transform FirePoint => firePoint;
+        public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
+        public int CurrentHealth => currentHealth;
 
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
+            _weaponController = GetComponent<WeaponController>();
             _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
+
+            currentHealth = Mathf.Max(1, maxHealth);
+
+            if (string.IsNullOrWhiteSpace(playerId))
+            {
+                playerId = gameObject.name;
+            }
 
             if (tankBody == null)
             {
@@ -63,6 +81,7 @@ namespace TankRoyale.Gameplay
         {
             ReadMovementInput();
             RotateTurretToMouse();
+            HandleFireInput();
         }
 
         private void FixedUpdate()
@@ -71,24 +90,34 @@ namespace TankRoyale.Gameplay
             RotateBodyToMovement();
         }
 
-        /// <summary>
-        /// Intended to be called by WeaponController.
-        /// </summary>
-        public GameObject FireProjectile()
+        public void TakeDamage(int amount)
         {
-            if (projectilePrefab == null)
+            if (!gameObject.activeInHierarchy || amount <= 0)
             {
-                Debug.LogWarning("[TankController] Cannot fire: projectilePrefab is not assigned.");
-                return null;
+                return;
             }
 
-            if (firePoint == null)
+            currentHealth = Mathf.Max(0, currentHealth - amount);
+            if (currentHealth > 0)
             {
-                Debug.LogWarning("[TankController] Cannot fire: firePoint is not assigned.");
-                return null;
+                return;
             }
 
-            return Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+            Debug.Log($"[{name}] destroyed");
+            gameObject.SetActive(false);
+        }
+
+        private void HandleFireInput()
+        {
+            if (_weaponController == null)
+            {
+                return;
+            }
+
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+            {
+                _weaponController.Fire();
+            }
         }
 
         private void ReadMovementInput()
