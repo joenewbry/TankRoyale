@@ -99,19 +99,22 @@ namespace TankRoyale.Gameplay
 
         public void TakeDamage(int amount)
         {
-            if (!gameObject.activeInHierarchy || amount <= 0)
-            {
-                return;
-            }
-
+            if (!gameObject.activeInHierarchy || amount <= 0) return;
             currentHealth = Mathf.Max(0, currentHealth - amount);
-            if (currentHealth > 0)
+            Debug.Log($"[{name}] took {amount} damage — health {currentHealth}/{maxHealth}");
+            if (currentHealth <= 0)
             {
-                return;
+                Debug.Log($"[{name}] destroyed");
+                gameObject.SetActive(false);
             }
+        }
 
-            Debug.Log($"[{name}] destroyed");
-            gameObject.SetActive(false);
+        public void Heal(int amount)
+        {
+            if (!gameObject.activeInHierarchy || amount <= 0) return;
+            int prev = currentHealth;
+            currentHealth = Mathf.Min(maxHealth, currentHealth + amount);
+            Debug.Log($"[{name}] healed {currentHealth - prev} HP — health {currentHealth}/{maxHealth}");
         }
 
         private void HandleFireInput()

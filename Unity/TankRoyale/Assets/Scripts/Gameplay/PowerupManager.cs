@@ -9,12 +9,21 @@ namespace TankRoyale.Gameplay
     /// </summary>
     public class PowerupManager : MonoBehaviour
     {
-        public const string RicochetPowerup = "ricochet";
-        public const string ArmorPowerup = "armor";
+        public static PowerupManager Instance { get; private set; }
+
+        public const string RicochetPowerup     = "ricochet";
+        public const string ArmorPowerup        = "armor";
         public const string BlockbreakerPowerup = "blockbreaker";
+        public const string HealPowerup         = "heal";
 
         // playerId -> (powerupKey -> isActive)
         private readonly Dictionary<string, Dictionary<string, bool>> _activePowerupsByPlayer = new();
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+            Instance = this;
+        }
 
         public void ApplyPowerup(string playerId, string powerupKey)
         {
