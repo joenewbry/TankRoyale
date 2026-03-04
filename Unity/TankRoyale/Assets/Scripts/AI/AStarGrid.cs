@@ -196,22 +196,6 @@ namespace TankRoyale.AI
             SetWalkable(x, y, true);
         }
 
-        // UnityEvent-friendly aliases (ArenaSpawner/destructible callbacks).
-        public void OnBlockDestroyed(Vector3 blockWorldPosition)
-        {
-            NotifyBlockDestroyed(blockWorldPosition);
-        }
-
-        public void OnBlockDestroyed(int x, int y)
-        {
-            NotifyBlockDestroyed(x, y);
-        }
-
-        public void OnArenaMapChanged()
-        {
-            RefreshFromArenaSpawner();
-        }
-
         public Vector3 GetCellCenterWorld(int x, int y)
         {
             return _gridOrigin + new Vector3((x + 0.5f) * cellSize, 0f, (y + 0.5f) * cellSize);
