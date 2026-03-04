@@ -36,6 +36,17 @@ namespace TankRoyale.AI
                 return false;
             }
 
+            if (grid.Grid == null)
+            {
+                grid.RebuildGrid();
+            }
+
+            GridNode[,] nodes = grid.Grid;
+            if (nodes == null)
+            {
+                return false;
+            }
+
             GridNode startNode = grid.GetNodeFromWorldPos(start);
             GridNode endNode = grid.GetNodeFromWorldPos(end);
 
@@ -44,7 +55,7 @@ namespace TankRoyale.AI
                 return false;
             }
 
-            ResetNodes(grid);
+            ResetNodes(nodes, grid.GridWidth, grid.GridHeight);
             OpenSet.EnsureCapacity(grid.MaxNodeCount);
             OpenSet.Clear();
 
@@ -66,26 +77,26 @@ namespace TankRoyale.AI
                 }
 
                 int baseX = current.GridX;
-                int baseY = current.GridY;
+                int baseZ = current.GridY;
 
-                for (int y = -1; y <= 1; y++)
+                for (int z = -1; z <= 1; z++)
                 {
                     for (int x = -1; x <= 1; x++)
                     {
-                        if (x == 0 && y == 0)
+                        if (x == 0 && z == 0)
                         {
                             continue;
                         }
 
                         int neighborX = baseX + x;
-                        int neighborY = baseY + y;
-                        GridNode neighbor;
-                        if (!grid.TryGetNode(neighborX, neighborY, out neighbor))
+                        int neighborZ = baseZ + z;
+                        if (neighborX < 0 || neighborX >= grid.GridWidth || neighborZ < 0 || neighborZ >= grid.GridHeight)
                         {
                             continue;
                         }
 
-                        if (neighbor.IsClosed)
+                        GridNode neighbor = nodes[neighborX, neighborZ];
+                        if (neighbor == null || neighbor.IsClosed)
                         {
                             continue;
                         }
@@ -97,8 +108,8 @@ namespace TankRoyale.AI
                             continue;
                         }
 
-                        bool diagonalMove = x != 0 && y != 0;
-                        if (diagonalMove && !CanTraverseDiagonal(grid, baseX, baseY, x, y))
+                        bool diagonalMove = x != 0 && z != 0;
+                        if (diagonalMove && !CanTraverseDiagonal(nodes, grid.GridWidth, grid.GridHeight, baseX, baseZ, x, z))
                         {
                             continue;
                         }
@@ -180,21 +191,35 @@ namespace TankRoyale.AI
             }
         }
 
-        private static bool CanTraverseDiagonal(AStarGrid grid, int currentX, int currentY, int stepX, int stepY)
+        private static bool CanTraverseDiagonal(GridNode[,] nodes, int width, int height, int currentX, int currentY, int stepX, int stepY)
         {
-            // Prevent corner cutting through blocked tiles.
-            bool horizontalWalkable = grid.IsWalkable(currentX + stepX, currentY);
-            bool verticalWalkable = grid.IsWalkable(currentX, currentY + stepY);
+            int horizontalX = currentX + stepX;
+            int horizontalY = currentY;
+            int verticalX = currentX;
+            int verticalY = currentY + stepY;
+
+            if (horizontalX < 0 || horizontalX >= width || horizontalY < 0 || horizontalY >= height)
+            {
+                return false;
+            }
+
+            if (verticalX < 0 || verticalX >= width || verticalY < 0 || verticalY >= height)
+            {
+                return false;
+            }
+
+            bool horizontalWalkable = nodes[horizontalX, horizontalY].Walkable;
+            bool verticalWalkable = nodes[verticalX, verticalY].Walkable;
             return horizontalWalkable && verticalWalkable;
         }
 
-        private static void ResetNodes(AStarGrid grid)
+        private static void ResetNodes(GridNode[,] nodes, int width, int height)
         {
-            for (int y = 0; y < grid.Height; y++)
+            for (int z = 0; z < height; z++)
             {
-                for (int x = 0; x < grid.Width; x++)
+                for (int x = 0; x < width; x++)
                 {
-                    GridNode node = grid.GetNode(x, y);
+                    GridNode node = nodes[x, z];
                     if (node != null)
                     {
                         node.ResetPathState();

@@ -21,7 +21,7 @@ namespace TankRoyale.AI
         public GridNode Parent;
 
         // Runtime pathfinding state (reused between searches; no per-search allocations).
-        internal int HeapIndex = -1;
+        public int HeapIndex = -1;
         internal bool IsOpen;
         internal bool IsClosed;
 
