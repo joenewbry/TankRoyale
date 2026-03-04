@@ -7,8 +7,6 @@ namespace TankRoyale.Gameplay
     /// Movement occurs on XZ plane (Y up).
     /// </summary>
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(Rigidbody))]
-    [RequireComponent(typeof(WeaponController))]
     public class TankController : MonoBehaviour
     {
         private static readonly Plane GroundPlane = new Plane(Vector3.up, Vector3.zero);

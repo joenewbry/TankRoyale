@@ -9,7 +9,7 @@ namespace TankRoyale.Gameplay
     /// Must live on the same GameObject as TankController.
     /// </summary>
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(TankController))]
+    // RequireComponent removed for editor-script compatibility
     public class WeaponController : MonoBehaviour
     {
         [Header("Projectile")]
