@@ -44,6 +44,14 @@ namespace TankRoyale.Gameplay
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
+            if (_rigidbody == null)
+            {
+                _rigidbody = gameObject.AddComponent<Rigidbody>();
+                _rigidbody.useGravity = false;
+                _rigidbody.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
+                _rigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
+                _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+            }
             _weaponController = GetComponent<WeaponController>();
             _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
 

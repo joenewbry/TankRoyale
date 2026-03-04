@@ -116,7 +116,7 @@ public static class TankRoyaleSetup
 
         // ── Player tank ───────────────────────────────────────────────────
         EnsureTagExists("Player");
-        GameObject player = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab);
+        GameObject player = Object.Instantiate(playerPrefab);
         player.transform.position = new Vector3(2f, 0f, 2f);
         player.tag = "Player";
         player.name = "PlayerTank";
@@ -148,7 +148,7 @@ public static class TankRoyaleSetup
         };
         foreach (var (prefab, pos, ename) in enemyData)
         {
-            GameObject e = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            GameObject e = Object.Instantiate(prefab);
             e.transform.position = pos;
             e.tag = "Enemy";
             e.name = ename;
@@ -277,11 +277,11 @@ public static class TankRoyaleSetup
 
         GameObject gridGO = GetOrCreateSceneObject(scene, "AStarGrid");
         var grid = gridGO.GetComponent<AStarGrid>() ?? gridGO.AddComponent<AStarGrid>();
-        SetPrivateField(grid, "width", ArenaSize);
-        SetPrivateField(grid, "height", ArenaSize);
+        SetPrivateField(grid, "gridWidth", ArenaSize);
+        SetPrivateField(grid, "gridHeight", ArenaSize);
         SetPrivateField(grid, "cellSize", 1f);
-        SetPrivateField(grid, "useTransformAsCenter", false);
-        SetPrivateField(grid, "manualOrigin", Vector3.zero);
+        
+        
 
         GetOrCreateSceneObject(scene, "GameManager");
 
@@ -296,7 +296,7 @@ public static class TankRoyaleSetup
             GameObject playerPrefab = Load<GameObject>(PlayerTankPath);
             if (playerPrefab != null)
             {
-                GameObject playerTank = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, scene);
+                GameObject playerTank = Object.Instantiate(playerPrefab);
                 playerTank.transform.position = new Vector3(2f, 0.5f, 2f);
                 playerTank.tag = "Player";
                 playerTank.name = "PlayerTank";
@@ -335,7 +335,7 @@ public static class TankRoyaleSetup
                     if (enemyObject.transform.childCount == 0 && prefab != null)
                     {
                         Object.DestroyImmediate(enemyObject);
-                        enemyObject = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+                        enemyObject = Object.Instantiate(prefab);
                     }
 
                     var erRb = enemyObject.GetComponent<Rigidbody>() ?? enemyObject.AddComponent<Rigidbody>();
