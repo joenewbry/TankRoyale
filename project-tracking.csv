@@ -1,0 +1,10 @@
+workstream,phase,task_id,task,owner_role,owner_agent,status,depends_on,target_branch,pr,status_note
+menu,planning,MENU-001,Finalize main menu + settings flow,PM-Menu,arcade-agent-03,done,,main,,Ticket spec in MENU_PM_TICKETS.md
+gameplay,planning,GAME-001,Define core combat + AI behavior spec,PM-Gameplay,arcade-agent-04,done,,main,,Ticket spec in GAMEPLAY_PM_TICKETS.md
+powerups,planning,PWR-001,Define pickups + 10 challenge levels,PM-Powerups,arcade-agent-05,done,,main,,Ticket spec in POWERUP_PM_TICKETS.md
+architecture,planning,ARCH-001,Unity architecture and platform strategy,Tech Architect,arcade-agent-02,done,,main,,TECHNICAL_ARCHITECTURE.md
+design,planning,DESIGN-001,Game design doc and game loop,Game Designer,arcade-agent-01,done,,main,,GAME_DESIGN.md
+menu,implementation,MENU-101,Implement menu scene shell + input routing,Dev M1,arcade-dev-01,assigned,MENU-001,feat/menu-shell,,Kickoff task
+gameplay,implementation,GAME-101,Implement 30x30 grid generator + block spawner,Dev G1,arcade-dev-02,assigned,GAME-001,feat/grid-gen,,Kickoff task
+gameplay,implementation,GAME-102,Implement player tank movement + base fire loop,Dev G2,arcade-dev-03,assigned,GAME-001,feat/player-core,,Kickoff task
+qa,validation,QA-101,Define PR checks and smoke suite,QA Engineer,arcade-agent-06,done,,main,,QA_PLAN.md
