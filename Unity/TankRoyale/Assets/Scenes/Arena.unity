@@ -1979,6 +1979,57 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6386263858731719425, guid: 214a52b1724b3574ba93fc4ed10ee95a, type: 3}
   m_PrefabInstance: {fileID: 56229544}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &56447252
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 56447254}
+  - component: {fileID: 56447253}
+  m_Layer: 0
+  m_Name: PowerupSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &56447253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 56447252}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 776a2657798414e489ef1f85fc6a015e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.PowerupSpawner
+  ricochetPrefab: {fileID: 354319976036458025, guid: fafcfba6dd926c44598ceb7351ab18a6, type: 3}
+  armorPrefab: {fileID: 239132465056413362, guid: 2e5f0dd626fadf14a9ad75aa89a00421, type: 3}
+  blockBreakerPrefab: {fileID: 7234281103118743318, guid: 12916c85956752d44887d055523fdd2f, type: 3}
+  spawnCount: 3
+  gridSize: 30
+  cellSize: 1
+  spawnHeight: 0.5
+--- !u!4 &56447254
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 56447252}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &57268646
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2289,50 +2340,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 880312600087017815, guid: 2a3c2deb7c773334a8c4d9899b5ed61e, type: 3}
   m_PrefabInstance: {fileID: 68503013}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &71266506
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 71266508}
-  - component: {fileID: 71266507}
-  m_Layer: 0
-  m_Name: PowerupManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &71266507
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71266506}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0bf6cbda9a5b146f786aaf64c2d6ac2f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.PowerupManager
---- !u!4 &71266508
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71266506}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &72998640
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6770,6 +6777,105 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 828523544228654357, guid: ca1b282ca28562e4789001b81c17e1ed, type: 3}
   m_PrefabInstance: {fileID: 189004254}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &190591940
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 27
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_Name
+      value: EnemyTank_02
+      objectReference: {fileID: 0}
+    - target: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      propertyPath: m_TagString
+      value: Enemy
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 190591942}
+  m_SourcePrefab: {fileID: 100100000, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+--- !u!1 &190591941 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
+  m_PrefabInstance: {fileID: 190591940}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &190591942
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 190591941}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6332541ccf13a4979b07c589ac77686b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AITankController
+  grid: {fileID: 0}
+  playerTarget: {fileID: 0}
+  bodyRoot: {fileID: 0}
+  turretPivot: {fileID: 0}
+  muzzlePoint: {fileID: 0}
+  projectilePrefab: {fileID: 0}
+  moveSpeed: 4
+  bodyTurnSpeed: 360
+  waypointReachDistance: 0.15
+  repathIntervalSeconds: 1.5
+  turretTurnSpeed: 540
+  fireRange: 12
+  fireCooldown: 0.8
+  losOriginHeight: 0.4
+  losTargetHeight: 0.4
+  lineOfSightMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1001 &190825833
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -9064,6 +9170,50 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 241212272}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &242170738
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 242170740}
+  - component: {fileID: 242170739}
+  m_Layer: 0
+  m_Name: PowerupManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &242170739
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 242170738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bf6cbda9a5b146f786aaf64c2d6ac2f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.PowerupManager
+--- !u!4 &242170740
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 242170738}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &244901924
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12474,58 +12624,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 828523544228654357, guid: ca1b282ca28562e4789001b81c17e1ed, type: 3}
   m_PrefabInstance: {fileID: 311125598}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &311464240
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 311464242}
-  - component: {fileID: 311464241}
-  m_Layer: 0
-  m_Name: AStarGrid
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &311464241
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 311464240}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c0d6e6297698458a88f0772bafa51e0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AStarGrid
-  gridWidth: 30
-  gridHeight: 30
-  cellSize: 1
-  originPosition: {x: 0, y: 0, z: 0}
-  obstacleLayer:
-    serializedVersion: 2
-    m_Bits: 4294967291
-  obstacleCheckRadius: 0.4
---- !u!4 &311464242
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 311464240}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &315991936
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -19966,37 +20064,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 501986565}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &502047762
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 502047763}
-  m_Layer: 0
-  m_Name: GameManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &502047763
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 502047762}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &503539857
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -24151,57 +24218,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 880312600087017815, guid: 2a3c2deb7c773334a8c4d9899b5ed61e, type: 3}
   m_PrefabInstance: {fileID: 585028359}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &587300526
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 587300528}
-  - component: {fileID: 587300527}
-  m_Layer: 0
-  m_Name: PowerupSpawner
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &587300527
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 587300526}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 776a2657798414e489ef1f85fc6a015e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.PowerupSpawner
-  ricochetPrefab: {fileID: 354319976036458025, guid: fafcfba6dd926c44598ceb7351ab18a6, type: 3}
-  armorPrefab: {fileID: 239132465056413362, guid: 2e5f0dd626fadf14a9ad75aa89a00421, type: 3}
-  blockBreakerPrefab: {fileID: 7234281103118743318, guid: 12916c85956752d44887d055523fdd2f, type: 3}
-  spawnCount: 3
-  gridSize: 30
-  cellSize: 1
-  spawnHeight: 0.5
---- !u!4 &587300528
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 587300526}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &587964922
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25504,146 +25520,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 828523544228654357, guid: ca1b282ca28562e4789001b81c17e1ed, type: 3}
   m_PrefabInstance: {fileID: 619041509}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &620980677
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_Name
-      value: PlayerTank
-      objectReference: {fileID: 0}
-    - target: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_TagString
-      value: Player
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 620980681}
-    - targetCorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 620980680}
-    - targetCorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 620980679}
-  m_SourcePrefab: {fileID: 100100000, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
---- !u!1 &620980678 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
-  m_PrefabInstance: {fileID: 620980677}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &620980679
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 620980678}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 338119db09484824af6fc92d6215b126, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.TankController
-  playerId: 
-  tankBody: {fileID: 0}
-  turret: {fileID: 0}
-  firePoint: {fileID: 0}
-  aimCamera: {fileID: 0}
-  moveSpeed: 5
-  rotationSpeed: 360
-  turretRotationSpeed: 540
-  maxHealth: 3
---- !u!114 &620980680
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 620980678}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0d7e0156a8ec4d2c9ace2b8b5094f171, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.WeaponController
-  projectilePrefab: {fileID: 7225574209442690149, guid: f12a565ec8756144ebbaccddd80ab26c, type: 3}
-  fireRate: 0.5
-  bulletSpeed: 15
-  sfxShot: {fileID: 0}
-  powerupManager: {fileID: 0}
---- !u!54 &620980681
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 620980678}
-  serializedVersion: 5
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1001 &621739649
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -31022,60 +30898,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 743429989}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &744726502
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 744726504}
-  - component: {fileID: 744726503}
-  m_Layer: 0
-  m_Name: AudioManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &744726503
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 744726502}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 82f2aec8e6c324b1896e56cba39c4d40, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Audio.AudioManager
-  soundLibrary: {fileID: 0}
-  sfxShot: {fileID: 0}
-  sfxExplosion: {fileID: 0}
-  sfxBlockDestroy: {fileID: 0}
-  sfxPowerupPickup: {fileID: 0}
-  sfxArmorActivate: {fileID: 0}
-  sfxTankEngine: {fileID: 0}
-  musicMain: {fileID: 0}
-  masterVolume: 1
-  sfxVolume: 1
---- !u!4 &744726504
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 744726502}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &752652467
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -42136,6 +41958,105 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 1055543942}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1055759742
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 27
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_Name
+      value: EnemyTank_03
+      objectReference: {fileID: 0}
+    - target: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      propertyPath: m_TagString
+      value: Enemy
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1055759744}
+  m_SourcePrefab: {fileID: 100100000, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+--- !u!1 &1055759743 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
+  m_PrefabInstance: {fileID: 1055759742}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1055759744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1055759743}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6332541ccf13a4979b07c589ac77686b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AITankController
+  grid: {fileID: 0}
+  playerTarget: {fileID: 0}
+  bodyRoot: {fileID: 0}
+  turretPivot: {fileID: 0}
+  muzzlePoint: {fileID: 0}
+  projectilePrefab: {fileID: 0}
+  moveSpeed: 4
+  bodyTurnSpeed: 360
+  waypointReachDistance: 0.15
+  repathIntervalSeconds: 1.5
+  turretTurnSpeed: 540
+  fireRange: 12
+  fireCooldown: 0.8
+  losOriginHeight: 0.4
+  losTargetHeight: 0.4
+  lineOfSightMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1001 &1060050114
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -48703,6 +48624,7 @@ GameObject:
   - component: {fileID: 1228698070}
   - component: {fileID: 1228698069}
   - component: {fileID: 1228698068}
+  - component: {fileID: 1228698071}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -48784,6 +48706,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1228698071
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1228698067}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f6bca8a1ae64be1b57b0bb10f39f4b9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.CameraController
+  playerTank: {fileID: 0}
+  playerTurret: {fileID: 0}
+  topDownHeight: 20
+  orthoSize: 12
+  followSpeed: 8
+  switchKey: 9
 --- !u!1001 &1229344603
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -54511,6 +54451,146 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 1359414226}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1359556646
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_Name
+      value: PlayerTank
+      objectReference: {fileID: 0}
+    - target: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_TagString
+      value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4315918477310891794, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1359556650}
+    - targetCorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1359556649}
+    - targetCorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1359556648}
+  m_SourcePrefab: {fileID: 100100000, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+--- !u!1 &1359556647 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3507996596993871272, guid: 5f87f3ffe43340e44a95c2b35416ce74, type: 3}
+  m_PrefabInstance: {fileID: 1359556646}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1359556648
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1359556647}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 338119db09484824af6fc92d6215b126, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.TankController
+  playerId: 
+  tankBody: {fileID: 0}
+  turret: {fileID: 0}
+  firePoint: {fileID: 0}
+  aimCamera: {fileID: 0}
+  moveSpeed: 5
+  rotationSpeed: 360
+  turretRotationSpeed: 540
+  maxHealth: 3
+--- !u!114 &1359556649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1359556647}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0d7e0156a8ec4d2c9ace2b8b5094f171, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Gameplay.WeaponController
+  projectilePrefab: {fileID: 7225574209442690149, guid: f12a565ec8756144ebbaccddd80ab26c, type: 3}
+  fireRate: 0.5
+  bulletSpeed: 15
+  sfxShot: {fileID: 0}
+  powerupManager: {fileID: 0}
+--- !u!54 &1359556650
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1359556647}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1001 &1364355973
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -56309,6 +56389,105 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 1415854513}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1416120588
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 27
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 27
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_Name
+      value: EnemyTank_01
+      objectReference: {fileID: 0}
+    - target: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      propertyPath: m_TagString
+      value: Enemy
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1416120590}
+  m_SourcePrefab: {fileID: 100100000, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+--- !u!1 &1416120589 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
+  m_PrefabInstance: {fileID: 1416120588}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1416120590
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1416120589}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6332541ccf13a4979b07c589ac77686b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AITankController
+  grid: {fileID: 0}
+  playerTarget: {fileID: 0}
+  bodyRoot: {fileID: 0}
+  turretPivot: {fileID: 0}
+  muzzlePoint: {fileID: 0}
+  projectilePrefab: {fileID: 0}
+  moveSpeed: 4
+  bodyTurnSpeed: 360
+  waypointReachDistance: 0.15
+  repathIntervalSeconds: 1.5
+  turretTurnSpeed: 540
+  fireRange: 12
+  fireCooldown: 0.8
+  losOriginHeight: 0.4
+  losTargetHeight: 0.4
+  lineOfSightMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
 --- !u!1001 &1419327529
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -56557,105 +56736,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 1422907340}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1429891020
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 27
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4031542230307613552, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_Name
-      value: EnemyTank_03
-      objectReference: {fileID: 0}
-    - target: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      propertyPath: m_TagString
-      value: Enemy
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1429891022}
-  m_SourcePrefab: {fileID: 100100000, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
---- !u!1 &1429891021 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 4375593250955260362, guid: 75d167ac48cdc33498676c82d4430af0, type: 3}
-  m_PrefabInstance: {fileID: 1429891020}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1429891022
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1429891021}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6332541ccf13a4979b07c589ac77686b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AITankController
-  grid: {fileID: 0}
-  playerTarget: {fileID: 0}
-  bodyRoot: {fileID: 0}
-  turretPivot: {fileID: 0}
-  muzzlePoint: {fileID: 0}
-  projectilePrefab: {fileID: 0}
-  moveSpeed: 4
-  bodyTurnSpeed: 360
-  waypointReachDistance: 0.15
-  repathIntervalSeconds: 1.5
-  turretTurnSpeed: 540
-  fireRange: 12
-  fireCooldown: 0.8
-  losOriginHeight: 0.4
-  losTargetHeight: 0.4
-  lineOfSightMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!1001 &1430780243
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -66576,105 +66656,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 880312600087017815, guid: 2a3c2deb7c773334a8c4d9899b5ed61e, type: 3}
   m_PrefabInstance: {fileID: 1675378229}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1675466202
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 27
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 27
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2498291674261773449, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_Name
-      value: EnemyTank_01
-      objectReference: {fileID: 0}
-    - target: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      propertyPath: m_TagString
-      value: Enemy
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1675466204}
-  m_SourcePrefab: {fileID: 100100000, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
---- !u!1 &1675466203 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 3017525713386341939, guid: a9f2ef4930c7eaf4fa24cbcb854fe0c6, type: 3}
-  m_PrefabInstance: {fileID: 1675466202}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1675466204
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1675466203}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6332541ccf13a4979b07c589ac77686b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AITankController
-  grid: {fileID: 0}
-  playerTarget: {fileID: 0}
-  bodyRoot: {fileID: 0}
-  turretPivot: {fileID: 0}
-  muzzlePoint: {fileID: 0}
-  projectilePrefab: {fileID: 0}
-  moveSpeed: 4
-  bodyTurnSpeed: 360
-  waypointReachDistance: 0.15
-  repathIntervalSeconds: 1.5
-  turretTurnSpeed: 540
-  fireRange: 12
-  fireCooldown: 0.8
-  losOriginHeight: 0.4
-  losTargetHeight: 0.4
-  lineOfSightMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!1001 &1675535832
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -69314,6 +69295,60 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 828523544228654357, guid: ca1b282ca28562e4789001b81c17e1ed, type: 3}
   m_PrefabInstance: {fileID: 1732894720}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1733497725
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1733497727}
+  - component: {fileID: 1733497726}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1733497726
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1733497725}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82f2aec8e6c324b1896e56cba39c4d40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.Audio.AudioManager
+  soundLibrary: {fileID: 0}
+  sfxShot: {fileID: 0}
+  sfxExplosion: {fileID: 0}
+  sfxBlockDestroy: {fileID: 0}
+  sfxPowerupPickup: {fileID: 0}
+  sfxArmorActivate: {fileID: 0}
+  sfxTankEngine: {fileID: 0}
+  musicMain: {fileID: 0}
+  masterVolume: 1
+  sfxVolume: 1
+--- !u!4 &1733497727
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1733497725}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1733515158
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -70988,6 +71023,37 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 828523544228654357, guid: ca1b282ca28562e4789001b81c17e1ed, type: 3}
   m_PrefabInstance: {fileID: 1768397273}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1769308328
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1769308329}
+  m_Layer: 0
+  m_Name: GameManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1769308329
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1769308328}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1769889679
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -76758,105 +76824,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 828523544228654357, guid: ca1b282ca28562e4789001b81c17e1ed, type: 3}
   m_PrefabInstance: {fileID: 1927881935}
   m_PrefabAsset: {fileID: 0}
---- !u!1001 &1928959297
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 27
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 5838869867554991912, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_Name
-      value: EnemyTank_02
-      objectReference: {fileID: 0}
-    - target: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      propertyPath: m_TagString
-      value: Enemy
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 1928959299}
-  m_SourcePrefab: {fileID: 100100000, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
---- !u!1 &1928959298 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 6506581720155338130, guid: a8d376ef7a4ed2f439105279d6c5e2fb, type: 3}
-  m_PrefabInstance: {fileID: 1928959297}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &1928959299
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1928959298}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6332541ccf13a4979b07c589ac77686b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AITankController
-  grid: {fileID: 0}
-  playerTarget: {fileID: 0}
-  bodyRoot: {fileID: 0}
-  turretPivot: {fileID: 0}
-  muzzlePoint: {fileID: 0}
-  projectilePrefab: {fileID: 0}
-  moveSpeed: 4
-  bodyTurnSpeed: 360
-  waypointReachDistance: 0.15
-  repathIntervalSeconds: 1.5
-  turretTurnSpeed: 540
-  fireRange: 12
-  fireCooldown: 0.8
-  losOriginHeight: 0.4
-  losTargetHeight: 0.4
-  lineOfSightMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!1001 &1929193077
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -85673,6 +85640,58 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 2514360035067739974, guid: 09fcd8699d3665941a8ef6696320e444, type: 3}
   m_PrefabInstance: {fileID: 2137716638}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2143524003
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2143524005}
+  - component: {fileID: 2143524004}
+  m_Layer: 0
+  m_Name: AStarGrid
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2143524004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2143524003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4c0d6e6297698458a88f0772bafa51e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TankRoyale.AI.AStarGrid
+  gridWidth: 30
+  gridHeight: 30
+  cellSize: 1
+  originPosition: {x: 0, y: 0, z: 0}
+  obstacleLayer:
+    serializedVersion: 2
+    m_Bits: 4294967291
+  obstacleCheckRadius: 0.4
+--- !u!4 &2143524005
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2143524003}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2143813822
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -86063,12 +86082,12 @@ SceneRoots:
   - {fileID: 803113634}
   - {fileID: 1887971093}
   - {fileID: 1322282348}
-  - {fileID: 71266508}
-  - {fileID: 744726504}
-  - {fileID: 311464242}
-  - {fileID: 502047763}
-  - {fileID: 587300528}
-  - {fileID: 620980677}
-  - {fileID: 1675466202}
-  - {fileID: 1928959297}
-  - {fileID: 1429891020}
+  - {fileID: 242170740}
+  - {fileID: 1733497727}
+  - {fileID: 2143524005}
+  - {fileID: 1769308329}
+  - {fileID: 56447254}
+  - {fileID: 1359556646}
+  - {fileID: 1416120588}
+  - {fileID: 190591940}
+  - {fileID: 1055759742}
