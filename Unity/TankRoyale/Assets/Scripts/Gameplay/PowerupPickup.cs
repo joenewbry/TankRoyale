@@ -69,7 +69,7 @@ namespace TankRoyale.Gameplay
             }
 
             Debug.Log($"[PowerupPickup] {powerupType} collected by {playerId}");
-            AudioManager.Instance?.PlayPowerupPickupSFX();
+            TankRoyale.Audio.AudioManager.Instance?.PlayPowerupPickupSFX();
             Destroy(gameObject);
         }
     }

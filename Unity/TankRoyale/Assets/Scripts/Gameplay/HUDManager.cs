@@ -194,3 +194,16 @@ namespace TankRoyale.Gameplay
         }
     }
 }
+
+using UnityEngine;
+
+namespace TankRoyale.Gameplay
+{
+    public static class RectTransformExtensions
+    {
+        public static T AddComponent<T>(this RectTransform rt) where T : Component
+        {
+            return rt.gameObject.AddComponent<T>();
+        }
+    }
+}
