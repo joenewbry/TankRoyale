@@ -47,6 +47,27 @@ namespace TankRoyale.Gameplay
                    && isActive;
         }
 
+        public bool RemovePowerup(string playerId, string powerupKey)
+        {
+            if (string.IsNullOrWhiteSpace(playerId) || string.IsNullOrWhiteSpace(powerupKey))
+            {
+                return false;
+            }
+
+            if (!_activePowerupsByPlayer.TryGetValue(playerId, out Dictionary<string, bool> playerPowerups))
+            {
+                return false;
+            }
+
+            bool removed = playerPowerups.Remove(powerupKey);
+            if (playerPowerups.Count == 0)
+            {
+                _activePowerupsByPlayer.Remove(playerId);
+            }
+
+            return removed;
+        }
+
         public void ClearPlayerPowerups(string playerId)
         {
             if (string.IsNullOrWhiteSpace(playerId))
