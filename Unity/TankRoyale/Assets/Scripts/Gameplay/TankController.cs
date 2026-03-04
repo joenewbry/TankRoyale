@@ -40,6 +40,7 @@ namespace TankRoyale.Gameplay
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
         public int CurrentHealth => currentHealth;
+        public int MaxHealth => maxHealth;
 
         private void Awake()
         {

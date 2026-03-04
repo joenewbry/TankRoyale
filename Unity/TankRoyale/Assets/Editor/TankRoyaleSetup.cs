@@ -283,7 +283,11 @@ public static class TankRoyaleSetup
         
         
 
-        GetOrCreateSceneObject(scene, "GameManager");
+        GameObject gmGO = GetOrCreateSceneObject(scene, "GameManager");
+        if (gmGO.GetComponent<TankRoyale.Gameplay.GameManager>() == null)
+            gmGO.AddComponent<TankRoyale.Gameplay.GameManager>();
+        if (gmGO.GetComponent<TankRoyale.Gameplay.HUDManager>() == null)
+            gmGO.AddComponent<TankRoyale.Gameplay.HUDManager>();
 
         GameObject spawnerGO = GetOrCreateSceneObject(scene, "PowerupSpawner");
         var spawner = spawnerGO.GetComponent<PowerupSpawner>() ?? spawnerGO.AddComponent<PowerupSpawner>();
