@@ -32,6 +32,7 @@ namespace TankRoyale.Gameplay
         [Header("Health")]
         [SerializeField] private int maxHealth = 3;
 
+        // Requires Rigidbody with: Freeze Rotation X, Y, Z; Use Gravity unchecked; Collision Detection: Continuous
         private Rigidbody _rigidbody;
         private Camera _cachedCamera;
         private Vector2 _moveInput;

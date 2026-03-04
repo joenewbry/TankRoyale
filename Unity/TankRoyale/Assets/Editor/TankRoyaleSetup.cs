@@ -61,6 +61,7 @@ public static class TankRoyaleSetup
         camGO.transform.position = new Vector3(15f, 25f, 15f);
         camGO.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         camGO.AddComponent<AudioListener>();
+        camGO.AddComponent<CameraController>();
 
         // ── Lighting ──────────────────────────────────────────────────────
         GameObject lightGO = new GameObject("Directional Light");
@@ -243,6 +244,11 @@ public static class TankRoyaleSetup
         if (cameraObject.GetComponent<AudioListener>() == null)
         {
             cameraObject.AddComponent<AudioListener>();
+        }
+
+        if (cameraObject.GetComponent<CameraController>() == null)
+        {
+            cameraObject.AddComponent<CameraController>();
         }
 
         GameObject powerupManagerGO = GetOrCreateSceneObject(scene, "PowerupManager");
