@@ -76,6 +76,20 @@ namespace TankRoyale.Editor
             }
         }
 
+        /// <summary>
+        /// One-shot overnight entry point: setup scene → configure → build WebGL.
+        /// Usage: -executeMethod TankRoyale.Editor.BuildScript.SetupAndBuildWebGL
+        /// </summary>
+        [MenuItem("TankRoyale/Build/Setup + Build WebGL (Overnight)")]
+        public static void SetupAndBuildWebGL()
+        {
+            Debug.Log("[BuildScript] === Overnight Build Started ===");
+            TankRoyaleSetup.SetupDemoScene();
+            ConfigureWebGLSettings();
+            BuildWebGL();
+            Debug.Log("[BuildScript] === Overnight Build Complete ===");
+        }
+
         [MenuItem("TankRoyale/Build/Configure WebGL Settings")]
         public static void ConfigureWebGLSettings()
         {
