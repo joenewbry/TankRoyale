@@ -95,15 +95,20 @@ namespace TankRoyale.Editor
         {
             PlayerSettings.companyName = "DigitalSurfaceLabs";
             PlayerSettings.productName = "Tank Royale";
+#pragma warning disable CS0618
             PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.WebGL, "com.digitalsurfacelabs.tankroyale");
-
-            // WebGL
-            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
-            PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;
-            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None; // smaller build
+#pragma warning restore CS0618
             PlayerSettings.runInBackground = true;
 
-            // Quality — use "Low" for WebGL by default
+            // WebGL compression (Gzip is safe cross-version)
+            try { PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip; }
+            catch (System.Exception e) { Debug.LogWarning($"[BuildScript] compressionFormat: {e.Message}"); }
+
+            // Exception support — suppress for smaller build (enum value may vary)
+            try { PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None; }
+            catch (System.Exception e) { Debug.LogWarning($"[BuildScript] exceptionSupport: {e.Message}"); }
+
+            // Quality — use "Low" (index 0) for WebGL
             QualitySettings.SetQualityLevel(0, applyExpensiveChanges: true);
 
             // Make sure Arena is in build settings

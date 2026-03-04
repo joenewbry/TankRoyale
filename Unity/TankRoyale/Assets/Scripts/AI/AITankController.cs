@@ -35,6 +35,8 @@ namespace TankRoyale.AI
         private readonly List<Vector3> _waypoints = new List<Vector3>(64);
 
         private Transform _cachedTransform;
+        private Rigidbody _rigidbody;
+        private TankRoyale.Gameplay.TankController _tankController;
         private WaitForSeconds _repathWait;
         private Coroutine _repathRoutine;
 
@@ -44,23 +46,28 @@ namespace TankRoyale.AI
         private void Awake()
         {
             _cachedTransform = transform;
-
-            if (bodyRoot == null)
+            _rigidbody = GetComponent<Rigidbody>();
+            if (_rigidbody == null)
             {
-                bodyRoot = _cachedTransform;
+                _rigidbody = gameObject.AddComponent<Rigidbody>();
+                _rigidbody.useGravity = false;
+                _rigidbody.constraints = RigidbodyConstraints.FreezeRotationX
+                                       | RigidbodyConstraints.FreezeRotationZ
+                                       | RigidbodyConstraints.FreezePositionY;
+                _rigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
             }
 
-            if (turretPivot == null)
-            {
-                turretPivot = bodyRoot;
-            }
+            _tankController = GetComponent<TankRoyale.Gameplay.TankController>();
+
+            if (bodyRoot == null) bodyRoot = _cachedTransform;
+            if (turretPivot == null) turretPivot = bodyRoot;
 
             _repathWait = new WaitForSeconds(Mathf.Max(0.05f, repathIntervalSeconds));
         }
 
         private void Start()
         {
-            grid = FindObjectOfType<AStarGrid>();
+            grid = FindFirstObjectByType<AStarGrid>();
 
             GameObject player = GameObject.FindGameObjectWithTag("Player");
             playerTarget = player != null ? player.transform : null;
@@ -150,7 +157,11 @@ namespace TankRoyale.AI
             Quaternion targetRotation = Quaternion.LookRotation(direction, Vector3.up);
             bodyRoot.rotation = Quaternion.RotateTowards(bodyRoot.rotation, targetRotation, bodyTurnSpeed * Time.deltaTime);
 
-            _cachedTransform.position += direction * (moveSpeed * Time.deltaTime);
+            Vector3 newPosition = _cachedTransform.position + direction * (moveSpeed * Time.deltaTime);
+            if (_rigidbody != null)
+                _rigidbody.MovePosition(newPosition);
+            else
+                _cachedTransform.position = newPosition;
         }
 
         private void AimTurretAtPlayer()
@@ -200,12 +211,19 @@ namespace TankRoyale.AI
             }
 
             Transform spawnTransform = muzzlePoint != null ? muzzlePoint : turretPivot;
-            if (spawnTransform == null)
-            {
-                spawnTransform = _cachedTransform;
-            }
+            if (spawnTransform == null) spawnTransform = _cachedTransform;
 
-            Instantiate(projectilePrefab, spawnTransform.position, spawnTransform.rotation);
+            GameObject bullet = Instantiate(projectilePrefab, spawnTransform.position, spawnTransform.rotation);
+
+            // Set velocity
+            var rb = bullet.GetComponent<Rigidbody>();
+            if (rb != null) rb.linearVelocity = spawnTransform.forward * 15f;
+
+            // Tag shooter so we don't self-damage
+            var proj = bullet.GetComponent<TankRoyale.Gameplay.Projectile>();
+            if (proj != null && _tankController != null)
+                proj.shooterPlayerId = _tankController.PlayerId;
+
             _nextFireTime = Time.time + fireCooldown;
         }
 

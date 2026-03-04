@@ -108,7 +108,7 @@ namespace TankRoyale.Gameplay
             labelGO.transform.SetParent(panel.transform, false);
             var label = labelGO.AddComponent<Text>();
             label.text = title;
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = UIUtility.GetBuiltinFont();
             label.fontSize = 72;
             label.fontStyle = FontStyle.Bold;
             label.alignment = TextAnchor.MiddleCenter;
@@ -134,7 +134,7 @@ namespace TankRoyale.Gameplay
             btnLabelGO.transform.SetParent(btnGO.transform, false);
             var btnLabel = btnLabelGO.AddComponent<Text>();
             btnLabel.text = "PLAY AGAIN";
-            btnLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            btnLabel.font = UIUtility.GetBuiltinFont();
             btnLabel.fontSize = 36;
             btnLabel.fontStyle = FontStyle.Bold;
             btnLabel.alignment = TextAnchor.MiddleCenter;

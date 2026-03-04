@@ -16,6 +16,9 @@ namespace TankRoyale.Gameplay
         public bool isRicochet;
         public bool isBlockBreaker;
 
+        [Header("Shooter")]
+        public string shooterPlayerId;   // Set by WeaponController — prevents self-damage
+
         private Rigidbody _rigidbody;
         private PowerupManager _powerupManager;
         private int _remainingBounces;
@@ -37,7 +40,7 @@ namespace TankRoyale.Gameplay
         {
             if (_rigidbody != null)
             {
-                _lastVelocity = _rigidbody.velocity;
+                _lastVelocity = _rigidbody.linearVelocity;
             }
         }
 
@@ -65,7 +68,7 @@ namespace TankRoyale.Gameplay
 
                 if (_rigidbody != null)
                 {
-                    _rigidbody.velocity = _lastVelocity;
+                    _rigidbody.linearVelocity = _lastVelocity;
                 }
 
                 return;
@@ -88,13 +91,13 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            Vector3 incomingVelocity = _rigidbody != null ? _rigidbody.velocity : _lastVelocity;
+            Vector3 incomingVelocity = _rigidbody != null ? _rigidbody.linearVelocity : _lastVelocity;
             Vector3 collisionNormal = collision.contacts.Length > 0 ? collision.contacts[0].normal : -transform.forward;
             Vector3 reflectedVelocity = Vector3.Reflect(incomingVelocity, collisionNormal);
 
             if (_rigidbody != null)
             {
-                _rigidbody.velocity = reflectedVelocity;
+                _rigidbody.linearVelocity = reflectedVelocity;
                 _rigidbody.position += collisionNormal * 0.05f;
             }
             else
@@ -115,6 +118,12 @@ namespace TankRoyale.Gameplay
             if (hitTank == null)
             {
                 Destroy(gameObject);
+                return;
+            }
+
+            // Don't damage the tank that fired this
+            if (!string.IsNullOrEmpty(shooterPlayerId) && hitTank.PlayerId == shooterPlayerId)
+            {
                 return;
             }
 

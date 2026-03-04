@@ -83,7 +83,7 @@ namespace TankRoyale.Gameplay
             var lblGO = MakeRect("HPLabel", container.gameObject, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _healthLabel = lblGO.AddComponent<Text>();
             _healthLabel.text = "HP";
-            _healthLabel.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _healthLabel.font = UIUtility.GetBuiltinFont();
             _healthLabel.fontSize = 22;
             _healthLabel.fontStyle = FontStyle.Bold;
             _healthLabel.alignment = TextAnchor.MiddleLeft;
@@ -112,7 +112,7 @@ namespace TankRoyale.Gameplay
             bg.color = hudBackground;
 
             _enemyCountText = container.gameObject.AddComponent<Text>();
-            _enemyCountText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _enemyCountText.font = UIUtility.GetBuiltinFont();
             _enemyCountText.fontSize = 24;
             _enemyCountText.fontStyle = FontStyle.Bold;
             _enemyCountText.alignment = TextAnchor.MiddleCenter;
@@ -131,7 +131,7 @@ namespace TankRoyale.Gameplay
             bg.color = hudBackground;
 
             _powerupText = container.gameObject.AddComponent<Text>();
-            _powerupText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            _powerupText.font = UIUtility.GetBuiltinFont();
             _powerupText.fontSize = 20;
             _powerupText.alignment = TextAnchor.MiddleCenter;
             _powerupText.color = Color.white;

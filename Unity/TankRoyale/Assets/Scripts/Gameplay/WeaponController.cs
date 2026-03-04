@@ -64,13 +64,14 @@ namespace TankRoyale.Gameplay
             Rigidbody projectileRigidbody = projectileObject.GetComponent<Rigidbody>();
             if (projectileRigidbody != null)
             {
-                projectileRigidbody.velocity = firePoint.forward * bulletSpeed;
+                projectileRigidbody.linearVelocity = firePoint.forward * bulletSpeed;
             }
 
             Projectile projectileComponent = projectileObject.GetComponent<Projectile>();
             if (projectileComponent != null)
             {
                 string playerId = _tankController.PlayerId;
+                projectileComponent.shooterPlayerId = playerId;
                 projectileComponent.isRicochet = IsPowerupActive(playerId, PowerupManager.RicochetPowerup);
                 projectileComponent.isBlockBreaker = IsPowerupActive(playerId, PowerupManager.BlockbreakerPowerup);
             }
