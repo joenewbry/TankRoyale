@@ -55,16 +55,21 @@ namespace TankRoyale.AI
                 turretPivot = bodyRoot;
             }
 
-            if (playerTarget == null)
-            {
-                GameObject player = GameObject.FindGameObjectWithTag("Player");
-                if (player != null)
-                {
-                    playerTarget = player.transform;
-                }
-            }
-
             _repathWait = new WaitForSeconds(Mathf.Max(0.05f, repathIntervalSeconds));
+        }
+
+        private void Start()
+        {
+            grid = FindObjectOfType<AStarGrid>();
+
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            playerTarget = player != null ? player.transform : null;
+
+            if (grid == null || playerTarget == null)
+            {
+                Debug.LogWarning("AITankController disabled: missing AStarGrid or Player-tagged target.", this);
+                enabled = false;
+            }
         }
 
         private void OnEnable()
