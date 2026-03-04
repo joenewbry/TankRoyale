@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -11,6 +12,7 @@ public static class TankRoyaleSetup
 {
     private const int ArenaSize = 30;
     private const string ArenaScenePath = "Assets/Scenes/Arena.unity";
+    private const string DemoSceneSourcePath = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Demo Scene/Demo Scene 02.unity";
 
     private const string GroundTilePath   = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Asset/3D Tile/3D_Tile_Ground_01.prefab";
     private const string CratePath        = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Asset/Prop/Prop_Crate_01.prefab";
@@ -186,6 +188,151 @@ public static class TankRoyaleSetup
         Debug.Log($"[TankRoyaleSetup] ✅ Setup complete! Scene saved to {ArenaScenePath}");
     }
 
+    [MenuItem("TankRoyale/Setup Demo Scene")]
+    public static void SetupDemoScene()
+    {
+        EnsureTagExists("Player");
+        EnsureTagExists("Enemy");
+        EnsureTagExists("Block");
+
+        EnsureAssetFolder(Path.GetDirectoryName(ArenaScenePath));
+
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(DemoSceneSourcePath) == null)
+        {
+            Debug.LogError($"[TankRoyaleSetup] Demo scene not found at: {DemoSceneSourcePath}");
+            return;
+        }
+
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ArenaScenePath) != null)
+        {
+            AssetDatabase.DeleteAsset(ArenaScenePath);
+        }
+
+        if (!AssetDatabase.CopyAsset(DemoSceneSourcePath, ArenaScenePath))
+        {
+            Debug.LogError($"[TankRoyaleSetup] Failed to copy demo scene from '{DemoSceneSourcePath}' to '{ArenaScenePath}'.");
+            return;
+        }
+
+        AssetDatabase.Refresh();
+
+        Scene scene = EditorSceneManager.OpenScene(ArenaScenePath, OpenSceneMode.Single);
+
+        Camera mainCam = FindMainCameraInScene(scene);
+        GameObject cameraObject;
+        if (mainCam == null)
+        {
+            cameraObject = new GameObject("Main Camera");
+            SceneManager.MoveGameObjectToScene(cameraObject, scene);
+            cameraObject.tag = "MainCamera";
+            mainCam = cameraObject.AddComponent<Camera>();
+        }
+        else
+        {
+            cameraObject = mainCam.gameObject;
+            cameraObject.tag = "MainCamera";
+        }
+
+        mainCam.orthographic = true;
+        mainCam.orthographicSize = 18f;
+        mainCam.clearFlags = CameraClearFlags.SolidColor;
+        mainCam.backgroundColor = Color.black;
+        cameraObject.transform.position = new Vector3(15f, 25f, 15f);
+        cameraObject.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+
+        if (cameraObject.GetComponent<AudioListener>() == null)
+        {
+            cameraObject.AddComponent<AudioListener>();
+        }
+
+        GameObject powerupManagerGO = GetOrCreateSceneObject(scene, "PowerupManager");
+        if (powerupManagerGO.GetComponent<PowerupManager>() == null)
+        {
+            powerupManagerGO.AddComponent<PowerupManager>();
+        }
+
+        GameObject audioManagerGO = GetOrCreateSceneObject(scene, "AudioManager");
+        if (audioManagerGO.GetComponent<AudioManager>() == null)
+        {
+            audioManagerGO.AddComponent<AudioManager>();
+        }
+
+        GameObject gridGO = GetOrCreateSceneObject(scene, "AStarGrid");
+        var grid = gridGO.GetComponent<AStarGrid>() ?? gridGO.AddComponent<AStarGrid>();
+        SetPrivateField(grid, "width", ArenaSize);
+        SetPrivateField(grid, "height", ArenaSize);
+        SetPrivateField(grid, "cellSize", 1f);
+        SetPrivateField(grid, "useTransformAsCenter", false);
+        SetPrivateField(grid, "manualOrigin", Vector3.zero);
+
+        GetOrCreateSceneObject(scene, "GameManager");
+
+        GameObject spawnerGO = GetOrCreateSceneObject(scene, "PowerupSpawner");
+        var spawner = spawnerGO.GetComponent<PowerupSpawner>() ?? spawnerGO.AddComponent<PowerupSpawner>();
+        SetPrivateField(spawner, "ricochetPrefab", Load<GameObject>(RicochetPath));
+        SetPrivateField(spawner, "armorPrefab", Load<GameObject>(ArmorPath));
+        SetPrivateField(spawner, "blockBreakerPrefab", Load<GameObject>(BlockBreakerPath));
+
+        if (FindTaggedObjectsInScene(scene, "Player").Count == 0)
+        {
+            GameObject playerPrefab = Load<GameObject>(PlayerTankPath);
+            if (playerPrefab != null)
+            {
+                GameObject playerTank = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, scene);
+                playerTank.transform.position = new Vector3(2f, 0.5f, 2f);
+                playerTank.tag = "Player";
+                playerTank.name = "PlayerTank";
+
+                if (playerTank.GetComponent<TankController>() == null)
+                {
+                    playerTank.AddComponent<TankController>();
+                }
+
+                var weaponController = playerTank.GetComponent<WeaponController>() ?? playerTank.AddComponent<WeaponController>();
+                SetPrivateField(weaponController, "projectilePrefab", Load<GameObject>(ShellPath));
+            }
+        }
+
+        if (FindTaggedObjectsInScene(scene, "Enemy").Count < 3)
+        {
+            var enemyData = new (GameObject prefab, Vector3 pos, string name)[]
+            {
+                (Load<GameObject>(EnemyTank01Path), new Vector3(27f, 0.5f, 27f), "EnemyTank_01"),
+                (Load<GameObject>(EnemyTank02Path), new Vector3(27f, 0.5f, 2f), "EnemyTank_02"),
+                (Load<GameObject>(EnemyTank03Path), new Vector3(2f, 0.5f, 27f), "EnemyTank_03"),
+            };
+
+            foreach (var (prefab, pos, enemyName) in enemyData)
+            {
+                GameObject enemyObject = GetOrCreateSceneObject(scene, enemyName);
+
+                if (enemyObject.GetComponent<AITankController>() == null)
+                {
+                    if (enemyObject.transform.childCount == 0 && prefab != null)
+                    {
+                        Object.DestroyImmediate(enemyObject);
+                        enemyObject = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+                    }
+
+                    enemyObject.AddComponent<AITankController>();
+                }
+
+                enemyObject.transform.position = pos;
+                enemyObject.tag = "Enemy";
+                enemyObject.name = enemyName;
+            }
+        }
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        if (!EditorSceneManager.SaveScene(scene, ArenaScenePath))
+        {
+            Debug.LogError($"[TankRoyaleSetup] Failed to save scene at {ArenaScenePath}");
+            return;
+        }
+
+        Debug.Log($"[TankRoyaleSetup] ✅ Demo scene setup complete! Scene saved to {ArenaScenePath}");
+    }
+
     [MenuItem("TankRoyale/Verify Assets")]
     public static void VerifyAssets()
     {
@@ -234,5 +381,82 @@ public static class TankRoyaleSetup
         tagsProperty.GetArrayElementAtIndex(tagsProperty.arraySize - 1).stringValue = tag;
         tagManager.ApplyModifiedProperties();
         Debug.Log($"[TankRoyaleSetup] Tag '{tag}' added.");
+    }
+
+    private static void EnsureAssetFolder(string folderPath)
+    {
+        if (string.IsNullOrEmpty(folderPath) || AssetDatabase.IsValidFolder(folderPath))
+        {
+            return;
+        }
+
+        string[] parts = folderPath.Split('/');
+        string current = parts[0];
+        for (int i = 1; i < parts.Length; i++)
+        {
+            string next = current + "/" + parts[i];
+            if (!AssetDatabase.IsValidFolder(next))
+            {
+                AssetDatabase.CreateFolder(current, parts[i]);
+            }
+
+            current = next;
+        }
+    }
+
+    private static Camera FindMainCameraInScene(Scene scene)
+    {
+        Camera[] cameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
+        for (int i = 0; i < cameras.Length; i++)
+        {
+            Camera cam = cameras[i];
+            if (cam == null || cam.gameObject.scene != scene)
+            {
+                continue;
+            }
+
+            if (cam.gameObject.CompareTag("MainCamera") || cam.name == "Main Camera")
+            {
+                return cam;
+            }
+        }
+
+        return null;
+    }
+
+    private static GameObject GetOrCreateSceneObject(Scene scene, string name)
+    {
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
+        {
+            if (roots[i].name == name)
+            {
+                return roots[i];
+            }
+        }
+
+        GameObject go = new GameObject(name);
+        SceneManager.MoveGameObjectToScene(go, scene);
+        return go;
+    }
+
+    private static List<GameObject> FindTaggedObjectsInScene(Scene scene, string tag)
+    {
+        var matches = new List<GameObject>();
+        GameObject[] roots = scene.GetRootGameObjects();
+
+        for (int i = 0; i < roots.Length; i++)
+        {
+            Transform[] transforms = roots[i].GetComponentsInChildren<Transform>(true);
+            for (int j = 0; j < transforms.Length; j++)
+            {
+                if (transforms[j].CompareTag(tag))
+                {
+                    matches.Add(transforms[j].gameObject);
+                }
+            }
+        }
+
+        return matches;
     }
 }
