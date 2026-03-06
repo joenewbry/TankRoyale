@@ -26,6 +26,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float recoilImpulse = 1.6f;
         [SerializeField] private float dualBarrelOffset = 0.28f;
         [SerializeField] private float muzzleSpawnForwardOffset = 0.12f;
+        [SerializeField] private float aimRayDistance = 250f;
 
         [Header("Audio")]
         [SerializeField] private AudioClip sfxShot;
@@ -37,6 +38,7 @@ namespace TankRoyale.Gameplay
         private TankController _tankController;
         private float _nextFireTime;
         private static PhysicsMaterial _bouncyProjectileMaterial;
+        private Camera _cachedAimCamera;
 
         public float BulletSpeed => bulletSpeed;
         public bool UseBallisticArc => useBallisticArc;
@@ -98,9 +100,7 @@ namespace TankRoyale.Gameplay
         private void SpawnProjectile(string playerId, float localRightOffset, bool explosiveRounds)
         {
             Transform firePoint = _tankController.FirePoint;
-            Vector3 spawnPos = firePoint.position
-                             + (firePoint.right * localRightOffset)
-                             + (firePoint.forward * muzzleSpawnForwardOffset);
+            Vector3 spawnPos = GetProjectileSpawnPosition(firePoint, localRightOffset);
 
             GameObject projectileObject = !forceFallbackSphere && projectilePrefab != null
                 ? Instantiate(projectilePrefab, spawnPos, firePoint.rotation)
@@ -151,7 +151,10 @@ namespace TankRoyale.Gameplay
                 projectileComponent.isRicochet = bounceProjectilesByDefault || IsPowerupActive(playerId, PowerupManager.RicochetPowerup);
                 projectileComponent.isBlockBreaker = IsPowerupActive(playerId, PowerupManager.BlockbreakerPowerup);
                 projectileComponent.isExplosive = explosiveRounds;
+                projectileComponent.SetPaintColor(GetRandomPaintColor());
             }
+
+            ApplyProjectileVisualColor(projectileObject, projectileComponent != null ? projectileComponent.PaintColor : GetRandomPaintColor());
         }
 
         private GameObject CreateFallbackSphereProjectile(Vector3 position, Quaternion rotation)
@@ -198,11 +201,7 @@ namespace TankRoyale.Gameplay
                 return Vector3.zero;
             }
 
-            Vector3 launchDirection = origin.forward;
-            if (_tankController != null)
-            {
-                launchDirection = _tankController.AimForward;
-            }
+            Vector3 launchDirection = GetTargetingLaunchDirection(origin);
 
             if (useBallisticArc)
             {
@@ -219,6 +218,18 @@ namespace TankRoyale.Gameplay
             }
 
             return launchDirection * bulletSpeed;
+        }
+
+        public Vector3 GetProjectileSpawnPosition(Transform firePoint, float localRightOffset = 0f)
+        {
+            if (firePoint == null)
+            {
+                return transform.position;
+            }
+
+            return firePoint.position
+                 + (firePoint.right * localRightOffset)
+                 + (firePoint.forward * muzzleSpawnForwardOffset);
         }
 
         private bool IsPowerupActive(string playerId, string powerupKey)
@@ -243,6 +254,113 @@ namespace TankRoyale.Gameplay
                 }
 
                 Physics.IgnoreCollision(projectileCollider, ownerCollider, true);
+            }
+        }
+
+        private Vector3 GetTargetingLaunchDirection(Transform origin)
+        {
+            Vector3 launchDirection = _tankController != null ? _tankController.AimForward : origin.forward;
+            if (_tankController != null && !_tankController.CompareTag("Player"))
+            {
+                return launchDirection.normalized;
+            }
+
+            Camera cam = GetAimCamera();
+            if (cam == null)
+            {
+                return launchDirection.normalized;
+            }
+
+            Ray centerRay = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            RaycastHit[] hits = Physics.RaycastAll(centerRay, Mathf.Max(10f, aimRayDistance), ~0, QueryTriggerInteraction.Ignore);
+            RaycastHit nearest = default;
+            bool found = false;
+            float nearestDistance = float.MaxValue;
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                RaycastHit hit = hits[i];
+                if (hit.collider == null || IsOwnerCollider(hit.collider))
+                {
+                    continue;
+                }
+
+                if (hit.distance < nearestDistance)
+                {
+                    nearest = hit;
+                    nearestDistance = hit.distance;
+                    found = true;
+                }
+            }
+
+            Vector3 aimPoint = found ? nearest.point : centerRay.GetPoint(Mathf.Max(10f, aimRayDistance));
+            Vector3 toAim = aimPoint - GetProjectileSpawnPosition(origin);
+            if (toAim.sqrMagnitude > 0.0001f)
+            {
+                return toAim.normalized;
+            }
+
+            return launchDirection.normalized;
+        }
+
+        private Camera GetAimCamera()
+        {
+            if (_cachedAimCamera == null)
+            {
+                _cachedAimCamera = Camera.main;
+            }
+
+            if (_cachedAimCamera == null && _tankController != null)
+            {
+                _cachedAimCamera = _tankController.GetComponentInChildren<Camera>(true);
+            }
+
+            return _cachedAimCamera;
+        }
+
+        private bool IsOwnerCollider(Collider collider)
+        {
+            if (_tankController == null || collider == null)
+            {
+                return false;
+            }
+
+            Transform t = collider.transform;
+            Transform owner = _tankController.transform;
+            return t == owner || t.IsChildOf(owner);
+        }
+
+        private static Color GetRandomPaintColor()
+        {
+            return UnityEngine.Random.ColorHSV(
+                0f, 1f,
+                0.65f, 1f,
+                0.7f, 1f);
+        }
+
+        private static void ApplyProjectileVisualColor(GameObject projectileObject, Color color)
+        {
+            if (projectileObject == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = projectileObject.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null || renderer.sharedMaterial == null)
+                {
+                    continue;
+                }
+
+                Material instance = new Material(renderer.sharedMaterial);
+                if (instance.HasProperty("_Color"))
+                {
+                    instance.color = color;
+                }
+
+                renderer.material = instance;
             }
         }
 

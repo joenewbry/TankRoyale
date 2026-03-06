@@ -246,7 +246,11 @@ namespace TankRoyale.Gameplay
 
         public void RestartGame()
         {
+            Time.timeScale = 1f;
             _gameOver = false;
+            DebugVisualSettings.ResetDefaults();
+            TargetCactusSettings.ResetDefaults();
+            GL.wireframe = false;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
 

@@ -41,12 +41,14 @@ namespace TankRoyale.Gameplay
         private const float MinCollisionRadius = 0.12f;
         private float _collisionRadius = MinCollisionRadius;
         private bool _positionInitialized;
-        private static Material _splatterMaterial;
+        private Color _paintColor;
+        public Color PaintColor => _paintColor;
 
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
             _remainingBounces = Mathf.Max(0, maxBounces);
+            _paintColor = splatterColor;
             CacheCollisionRadius();
         }
 
@@ -142,6 +144,15 @@ namespace TankRoyale.Gameplay
             }
 
             GameObject hitObject = hitCollider.gameObject;
+            TargetCactus cactus = hitCollider.GetComponentInParent<TargetCactus>();
+            if (cactus != null)
+            {
+                cactus.TakeHit(1);
+                SpawnPaintSplat(point, normal, hitCollider.transform);
+                Destroy(gameObject);
+                return;
+            }
+
             if (hitObject.CompareTag("Player") || hitObject.CompareTag("Enemy"))
             {
                 HandleTankCollision(hitCollider, point, normal);
@@ -254,6 +265,7 @@ namespace TankRoyale.Gameplay
             }
 
             ApplyDamageToTank(hitTank);
+            ApplyImpactToTank(hitTank, normal);
             SpawnPaintSplat(point, normal, hitCollider.transform);
             Destroy(gameObject);
         }
@@ -274,6 +286,25 @@ namespace TankRoyale.Gameplay
             {
                 hitTank.TakeDamage(1, shooterPlayerId);
             }
+        }
+
+        private void ApplyImpactToTank(TankController hitTank, Vector3 impactNormal)
+        {
+            if (hitTank == null || impactNormal.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            Vector3 incoming = _rigidbody != null ? _rigidbody.linearVelocity : _lastVelocity;
+            float impactSpeed = incoming.magnitude;
+            if (impactSpeed <= 0.01f)
+            {
+                return;
+            }
+
+            Vector3 pushDir = -impactNormal.normalized;
+            float impulse = (impactSpeed / 12f) * Mathf.Max(0.1f, hitTank.ProjectileImpactStrength);
+            hitTank.ApplyImpactImpulse(pushDir * impulse);
         }
 
         private void Explode(Vector3 center)
@@ -341,7 +372,7 @@ namespace TankRoyale.Gameplay
             MeshRenderer renderer = splat.GetComponent<MeshRenderer>();
             if (renderer != null)
             {
-                renderer.sharedMaterial = GetSplatterMaterial();
+                renderer.sharedMaterial = GetSplatterMaterial(_paintColor);
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
             }
@@ -382,7 +413,7 @@ namespace TankRoyale.Gameplay
             MeshRenderer renderer = splat.GetComponent<MeshRenderer>();
             if (renderer != null)
             {
-                renderer.sharedMaterial = GetSplatterMaterial();
+                renderer.sharedMaterial = GetSplatterMaterial(_paintColor);
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
             }
@@ -422,25 +453,28 @@ namespace TankRoyale.Gameplay
             return t == transform || t.IsChildOf(transform);
         }
 
-        private Material GetSplatterMaterial()
+        public void SetPaintColor(Color color)
         {
-            if (_splatterMaterial == null)
-            {
-                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-                if (shader == null)
-                {
-                    shader = Shader.Find("Unlit/Color");
-                }
-                if (shader == null)
-                {
-                    shader = Shader.Find("Standard");
-                }
+            _paintColor = color;
+            splatterColor = color;
+        }
 
-                _splatterMaterial = new Material(shader);
+        private Material GetSplatterMaterial(Color color)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+            {
+                shader = Shader.Find("Unlit/Color");
+            }
+            if (shader == null)
+            {
+                shader = Shader.Find("Standard");
             }
 
-            _splatterMaterial.color = splatterColor;
-            return _splatterMaterial;
+            Material material = new Material(shader);
+            material.color = color;
+
+            return material;
         }
 
         private void OnDrawGizmosSelected()

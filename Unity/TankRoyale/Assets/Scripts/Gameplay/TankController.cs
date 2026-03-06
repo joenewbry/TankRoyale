@@ -21,7 +21,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Camera aimCamera;
 
         [Header("Movement Feel")]
-        [SerializeField] private float moveSpeed = 6f;
+        [SerializeField] private float moveSpeed = 8.5f;
         [SerializeField] private float speedBoostMultiplier = 1.35f;
         [SerializeField] private float acceleration = 28f;
         [SerializeField] private float deceleration = 38f;
@@ -74,6 +74,11 @@ namespace TankRoyale.Gameplay
         [Header("Health")]
         [SerializeField] private int maxHealth = 3;
 
+        [Header("Impact / Bounce")]
+        [SerializeField] private float collisionBounceStrength = 2.2f;
+        [SerializeField] private float collisionBounceDamping = 0.8f;
+        [SerializeField] private float projectileImpactStrength = 2.8f;
+
         // Requires Rigidbody with: Freeze Rotation only (top-down tank feel)
         private Rigidbody _rigidbody;
         private Camera _cachedCamera;
@@ -87,6 +92,8 @@ namespace TankRoyale.Gameplay
         private float _turretYaw;
         private float _turretPitch;
         private bool _turretAimInitialized;
+        private Renderer[] _turretRenderers = new Renderer[0];
+        private bool[] _turretRendererDefaults = new bool[0];
         private Transform[] _leftTreads = new Transform[0];
         private Transform[] _rightTreads = new Transform[0];
         private Animator[] _treadAnimators = new Animator[0];
@@ -101,6 +108,8 @@ namespace TankRoyale.Gameplay
         public int MaxHealth => maxHealth;
         public float CurrentSpeed => _planarVelocity.magnitude;
         public float CurrentSlopeAngle => Vector3.Angle(_groundNormal, Vector3.up);
+        public float ProjectileImpactStrength => projectileImpactStrength;
+        public float CurrentTurnInput => _moveInput.x;
         public Vector3 AimForward
         {
             get
@@ -136,8 +145,10 @@ namespace TankRoyale.Gameplay
 
             _rigidbody.useGravity = false;
             _rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
-            _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+            _rigidbody.solverIterations = Mathf.Max(_rigidbody.solverIterations, 10);
+            _rigidbody.solverVelocityIterations = Mathf.Max(_rigidbody.solverVelocityIterations, 10);
 
             _weaponController = GetComponent<WeaponController>();
             _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
@@ -153,6 +164,7 @@ namespace TankRoyale.Gameplay
             turret = ResolveTurretTransform();
             firePoint = ResolveFirePointTransform();
             InitializeTurretAimState();
+            CacheTurretRenderers();
             EnsureTrajectoryLine();
         }
 
@@ -166,6 +178,7 @@ namespace TankRoyale.Gameplay
 
         private void LateUpdate()
         {
+            UpdateTurretVisibilityByViewMode();
             // Run turret stabilization after movement/physics updates to reduce visual jitter.
             RotateTurretToMouse();
         }
@@ -210,6 +223,12 @@ namespace TankRoyale.Gameplay
             if (impulse <= 0f) return;
             Vector3 recoilDir = tankBody != null ? -tankBody.forward : -transform.forward;
             _planarVelocity += recoilDir * impulse;
+        }
+
+        public void ApplyImpactImpulse(Vector3 worldImpulse)
+        {
+            Vector3 planarImpulse = new Vector3(worldImpulse.x, 0f, worldImpulse.z);
+            _planarVelocity += planarImpulse;
         }
 
         private void HandleFireInput()
@@ -578,6 +597,50 @@ namespace TankRoyale.Gameplay
             _turretPitch = Mathf.Clamp(_turretPitch, minTurretPitch, maxTurretPitch);
         }
 
+        private void CacheTurretRenderers()
+        {
+            if (turret == null)
+            {
+                _turretRenderers = new Renderer[0];
+                _turretRendererDefaults = new bool[0];
+                return;
+            }
+
+            _turretRenderers = turret.GetComponentsInChildren<Renderer>(true);
+            _turretRendererDefaults = new bool[_turretRenderers.Length];
+            for (int i = 0; i < _turretRenderers.Length; i++)
+            {
+                _turretRendererDefaults[i] = _turretRenderers[i] != null && _turretRenderers[i].enabled;
+            }
+        }
+
+        private void UpdateTurretVisibilityByViewMode()
+        {
+            if (_turretRenderers == null || _turretRenderers.Length == 0)
+            {
+                return;
+            }
+
+            bool hideForCockpit = false;
+            CameraController cameraController = _cachedCamera != null ? _cachedCamera.GetComponent<CameraController>() : null;
+            if (cameraController != null && CompareTag("Player"))
+            {
+                hideForCockpit = cameraController.IsInTankMode;
+            }
+
+            for (int i = 0; i < _turretRenderers.Length; i++)
+            {
+                Renderer renderer = _turretRenderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                bool defaultVisible = i < _turretRendererDefaults.Length ? _turretRendererDefaults[i] : true;
+                renderer.enabled = hideForCockpit ? false : defaultVisible;
+            }
+        }
+
         private float NormalizeDegrees(float angle)
         {
             angle %= 360f;
@@ -588,7 +651,7 @@ namespace TankRoyale.Gameplay
 
         private float SampleGroundHeight(Vector3 proposedPosition, out Vector3 normal)
         {
-            float maxDist = groundProbeHeight * 3f;
+            float maxDist = groundProbeHeight * 4f;
             Vector3 origin = proposedPosition + Vector3.up * groundProbeHeight;
             normal = Vector3.up;
             if (DebugVisualSettings.ShowRaycasts)
@@ -597,18 +660,31 @@ namespace TankRoyale.Gameplay
             }
 
             RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, maxDist, ~0, QueryTriggerInteraction.Ignore);
-            if (hits != null)
+            if (hits != null && hits.Length > 0)
             {
+                RaycastHit nearest = default;
+                bool found = false;
+                float nearestDistance = float.MaxValue;
                 for (int i = 0; i < hits.Length; i++)
                 {
-                    RaycastHit hit = hits[i];
-                    if (hit.collider == null || IsSelfCollider(hit.collider))
+                    RaycastHit candidate = hits[i];
+                    if (candidate.collider == null || IsSelfCollider(candidate.collider))
                     {
                         continue;
                     }
 
-                    _groundHeight = hit.point.y + groundSnapHeight;
-                    normal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
+                    if (candidate.distance < nearestDistance)
+                    {
+                        nearestDistance = candidate.distance;
+                        nearest = candidate;
+                        found = true;
+                    }
+                }
+
+                if (found)
+                {
+                    _groundHeight = nearest.point.y + groundSnapHeight;
+                    normal = nearest.normal.sqrMagnitude > 0.0001f ? nearest.normal.normalized : Vector3.up;
                     return _groundHeight;
                 }
             }
@@ -625,6 +701,31 @@ namespace TankRoyale.Gameplay
 
             Transform colliderTransform = collider.transform;
             return colliderTransform == transform || colliderTransform.IsChildOf(transform);
+        }
+
+        private void OnCollisionEnter(Collision collision)
+        {
+            if (collision == null || collision.contactCount <= 0 || collisionBounceStrength <= 0.001f)
+            {
+                return;
+            }
+
+            ContactPoint contact = collision.GetContact(0);
+            Vector3 bounceDir = contact.normal.sqrMagnitude > 0.0001f ? contact.normal.normalized : Vector3.zero;
+            if (bounceDir == Vector3.zero)
+            {
+                return;
+            }
+
+            float approachSpeed = Mathf.Abs(Vector3.Dot(_planarVelocity, -bounceDir));
+            if (approachSpeed <= 0.02f)
+            {
+                return;
+            }
+
+            float impulse = approachSpeed * collisionBounceStrength;
+            _planarVelocity += new Vector3(bounceDir.x, 0f, bounceDir.z) * impulse;
+            _planarVelocity *= 1f / (1f + Mathf.Max(0f, collisionBounceDamping));
         }
 
         private float GetCurrentMoveSpeed()
@@ -923,7 +1024,7 @@ namespace TankRoyale.Gameplay
             _trajectoryLine.startWidth = trajectoryLineWidth;
             _trajectoryLine.endWidth = trajectoryLineWidth;
 
-            Vector3 pos = firePoint.position;
+            Vector3 pos = _weaponController.GetProjectileSpawnPosition(firePoint);
             Vector3 vel = _weaponController.GetLaunchVelocity(firePoint);
             Vector3 gravity = _weaponController.UseBallisticArc ? Physics.gravity : Vector3.zero;
 
@@ -968,7 +1069,7 @@ namespace TankRoyale.Gameplay
             }
 
             Vector3 velocity = wc.GetLaunchVelocity(firePoint);
-            Vector3 pos = firePoint.position;
+            Vector3 pos = wc.GetProjectileSpawnPosition(firePoint);
             Vector3 gravity = Physics.gravity;
             float dt = 0.1f;
 

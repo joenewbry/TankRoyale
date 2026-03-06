@@ -10,5 +10,17 @@ namespace TankRoyale.Gameplay
         public static bool ShowBounceNormals = true;
         public static bool Wireframe;
         public static bool DisableShadows;
+
+        public static void ResetDefaults()
+        {
+            ShowMenu = false;
+            ShowColliderBounds = false;
+            ShowRaycasts = false;
+            ShowProjectileArc = true;
+            ShowTrajectoryLine = true;
+            ShowBounceNormals = true;
+            Wireframe = false;
+            DisableShadows = false;
+        }
     }
 }

@@ -25,6 +25,13 @@ namespace TankRoyale.Gameplay
         [SerializeField] [Range(0.05f, 0.25f)] private float cockpitMaskPercent = 0.10f;
         [SerializeField] private Color cockpitMaskColor = new Color(0f, 0f, 0f, 0.55f);
         [SerializeField] private bool showTargetArrow = true;
+        [SerializeField] private bool showTurnDirectionArrow = true;
+
+        [Header("IN_TANK Minimap")]
+        [SerializeField] private bool showInTankMinimap = true;
+        [SerializeField] private float minimapRange = 50f;
+        [SerializeField] private float minimapSize = 136f;
+        [SerializeField] private Vector2 minimapScreenOffset = new Vector2(-20f, 20f); // from top-right
 
         [Header("STARE_DOWN_MUZZLE")]
         [SerializeField] private float muzzleViewDistance = 7f;
@@ -73,6 +80,7 @@ namespace TankRoyale.Gameplay
         private TankController _playerTankController;
 
         private static Texture2D _overlayPixel;
+        public bool IsInTankMode => _mode == InTankMode;
 
         public Vector3 AimForward
         {
@@ -439,7 +447,9 @@ namespace TankRoyale.Gameplay
             DrawRect(cx - overlayThickness * 0.5f, cy - overlaySize * 0.5f, overlayThickness, overlaySize);
             DrawTankCockpitFrame();
             DrawTargetArrow(cx, cy);
+            DrawTurnDirectionArrow(cx, cy);
             DrawTankCockpitTelemetry();
+            DrawInTankMinimap();
 
             GUI.color = old;
         }
@@ -525,6 +535,83 @@ namespace TankRoyale.Gameplay
             };
 
             GUI.Label(new Rect(cx - 14f, cy - 44f, 28f, 24f), "^", arrowStyle);
+        }
+
+        private void DrawTurnDirectionArrow(float cx, float cy)
+        {
+            if (!showTurnDirectionArrow || _playerTankController == null)
+            {
+                return;
+            }
+
+            float turn = _playerTankController.CurrentTurnInput;
+            string glyph = "";
+            if (turn > 0.2f) glyph = "<";
+            else if (turn < -0.2f) glyph = ">";
+
+            if (string.IsNullOrEmpty(glyph))
+            {
+                return;
+            }
+
+            GUIStyle arrowStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 28,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = cockpitOverlayColor }
+            };
+            GUI.Label(new Rect(cx - 18f, cy + 26f, 36f, 28f), glyph, arrowStyle);
+        }
+
+        private void DrawInTankMinimap()
+        {
+            if (!showInTankMinimap || playerTank == null)
+            {
+                return;
+            }
+
+            float size = Mathf.Max(80f, minimapSize);
+            float x = Screen.width - size + minimapScreenOffset.x;
+            float y = minimapScreenOffset.y;
+            Rect rect = new Rect(x, y, size, size);
+
+            GUI.color = new Color(0f, 0f, 0f, 0.5f);
+            DrawRect(rect.x, rect.y, rect.width, rect.height);
+            GUI.color = cockpitOverlayColor;
+            DrawRect(rect.x, rect.y, rect.width, 1.5f);
+            DrawRect(rect.x, rect.y + rect.height - 1.5f, rect.width, 1.5f);
+            DrawRect(rect.x, rect.y, 1.5f, rect.height);
+            DrawRect(rect.x + rect.width - 1.5f, rect.y, 1.5f, rect.height);
+
+            Vector2 center = new Vector2(rect.x + rect.width * 0.5f, rect.y + rect.height * 0.5f);
+            GUI.color = Color.green;
+            DrawRect(center.x - 2f, center.y - 2f, 4f, 4f);
+
+            GameObject[] enemies = GameObject.FindGameObjectsWithTag("Enemy");
+            float range = Mathf.Max(5f, minimapRange);
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                GameObject enemy = enemies[i];
+                if (enemy == null || !enemy.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                Vector3 delta = enemy.transform.position - playerTank.position;
+                Vector2 flat = new Vector2(delta.x, delta.z);
+                if (flat.magnitude > range)
+                {
+                    flat = flat.normalized * range;
+                }
+
+                Vector2 uv = flat / range;
+                Vector2 point = center + new Vector2(uv.x, uv.y) * (size * 0.45f);
+                GUI.color = Color.red;
+                DrawRect(point.x - 2f, point.y - 2f, 4f, 4f);
+            }
+
+            GUI.color = Color.white;
         }
 
         private void DrawTankCockpitTelemetry()
