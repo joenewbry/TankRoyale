@@ -11,6 +11,13 @@ namespace TankRoyale.Gameplay
     {
         [SerializeField] private float lifetimeSeconds = 5f;
         [SerializeField] private int maxBounces = 3;
+        [Header("Paintball Splatter")]
+        [SerializeField] private bool spawnPaintSplatters = true;
+        [SerializeField] private Color splatterColor = new Color(0.95f, 0.2f, 0.3f, 1f);
+        [SerializeField] private float minSplatterSize = 0.18f;
+        [SerializeField] private float maxSplatterSize = 0.42f;
+        [SerializeField] private float splatterLifetime = 16f;
+        [SerializeField] private float splatterSurfaceOffset = 0.01f;
 
         [Header("Explosive")]
         [SerializeField] private float explosionRadius = 2.4f;
@@ -30,6 +37,7 @@ namespace TankRoyale.Gameplay
         private Vector3 _lastBouncePoint;
         private Vector3 _lastBounceNormal;
         private Vector3 _lastBounceOut;
+        private static Material _splatterMaterial;
 
         private void Awake()
         {
@@ -57,7 +65,7 @@ namespace TankRoyale.Gameplay
 
             if (hitObject.CompareTag("Player") || hitObject.CompareTag("Enemy"))
             {
-                HandleTankCollision(hitObject);
+                HandleTankCollision(collision);
                 return;
             }
 
@@ -68,6 +76,7 @@ namespace TankRoyale.Gameplay
         {
             if (isBlockBreaker && hitObject.CompareTag("Block"))
             {
+                SpawnPaintSplat(collision);
                 Destroy(hitObject);
 
                 if (_rigidbody != null)
@@ -80,6 +89,7 @@ namespace TankRoyale.Gameplay
 
             if (isExplosive)
             {
+                SpawnPaintSplat(collision);
                 Explode(transform.position);
                 Destroy(gameObject);
                 return;
@@ -91,6 +101,7 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
+            SpawnPaintSplat(collision);
             Destroy(gameObject);
         }
 
@@ -134,11 +145,13 @@ namespace TankRoyale.Gameplay
             }
         }
 
-        private void HandleTankCollision(GameObject tankObject)
+        private void HandleTankCollision(Collision collision)
         {
+            GameObject tankObject = collision.collider.gameObject;
             TankController hitTank = tankObject.GetComponentInParent<TankController>();
             if (hitTank == null)
             {
+                SpawnPaintSplat(collision);
                 Destroy(gameObject);
                 return;
             }
@@ -151,12 +164,14 @@ namespace TankRoyale.Gameplay
 
             if (isExplosive)
             {
+                SpawnPaintSplat(collision);
                 Explode(transform.position);
                 Destroy(gameObject);
                 return;
             }
 
             ApplyDamageToTank(hitTank);
+            SpawnPaintSplat(collision);
             Destroy(gameObject);
         }
 
@@ -193,6 +208,83 @@ namespace TankRoyale.Gameplay
 
                 ApplyDamageToTank(tank);
             }
+        }
+
+        private void SpawnPaintSplat(Collision collision)
+        {
+            if (!spawnPaintSplatters)
+            {
+                return;
+            }
+
+            Vector3 point = transform.position;
+            Vector3 normal = -transform.forward;
+            Transform parent = null;
+
+            if (collision != null)
+            {
+                parent = collision.collider != null ? collision.collider.transform : null;
+                if (collision.contacts != null && collision.contacts.Length > 0)
+                {
+                    ContactPoint cp = collision.contacts[0];
+                    point = cp.point;
+                    normal = cp.normal;
+                }
+            }
+
+            if (normal.sqrMagnitude <= 0.0001f)
+            {
+                normal = Vector3.up;
+            }
+
+            GameObject splat = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            splat.name = "PaintSplat";
+            if (parent != null)
+            {
+                splat.transform.SetParent(parent, true);
+            }
+
+            float size = Random.Range(minSplatterSize, maxSplatterSize);
+            splat.transform.position = point + normal * splatterSurfaceOffset;
+            splat.transform.rotation = Quaternion.LookRotation(normal, Vector3.up) * Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+            splat.transform.localScale = new Vector3(size, size, size);
+
+            Collider c = splat.GetComponent<Collider>();
+            if (c != null)
+            {
+                Destroy(c);
+            }
+
+            MeshRenderer renderer = splat.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.sharedMaterial = GetSplatterMaterial();
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
+            Destroy(splat, splatterLifetime);
+        }
+
+        private Material GetSplatterMaterial()
+        {
+            if (_splatterMaterial == null)
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (shader == null)
+                {
+                    shader = Shader.Find("Unlit/Color");
+                }
+                if (shader == null)
+                {
+                    shader = Shader.Find("Standard");
+                }
+
+                _splatterMaterial = new Material(shader);
+            }
+
+            _splatterMaterial.color = splatterColor;
+            return _splatterMaterial;
         }
 
         private void OnDrawGizmosSelected()
