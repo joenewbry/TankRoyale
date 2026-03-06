@@ -35,6 +35,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float minClimbEntrySpeed = 2.6f;
         [SerializeField] private float slopeDrag = 2.2f;
         [SerializeField] private float uphillDeceleration = 4.5f;
+        [SerializeField] private float idleBrake = 18f;
+        [SerializeField] private float idleStopSpeed = 0.08f;
+        [SerializeField] private bool allowPassiveSlopeSlide = false;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
         [SerializeField] private float maxSlopeTiltAngle = 18f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
@@ -241,6 +244,7 @@ namespace TankRoyale.Gameplay
             float targetSpeed = GetCurrentMoveSpeed();
             Transform basis = tankBody != null ? tankBody : transform;
             float throttle = _moveInput.y;
+            bool hasThrottleInput = Mathf.Abs(throttle) > 0.001f;
             Vector3 desiredDirection = basis.forward * throttle;
             desiredDirection.y = 0f;
             if (desiredDirection.sqrMagnitude > 1f)
@@ -256,6 +260,12 @@ namespace TankRoyale.Gameplay
             Vector3 localVelocity = basis.InverseTransformDirection(_planarVelocity);
             localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, lateralGrip * Time.fixedDeltaTime);
             _planarVelocity = basis.TransformDirection(localVelocity);
+
+            // Idle brake: if not throttling, aggressively damp drift to prevent creeping.
+            if (!hasThrottleInput)
+            {
+                _planarVelocity = Vector3.MoveTowards(_planarVelocity, Vector3.zero, idleBrake * Time.fixedDeltaTime);
+            }
 
             Vector3 projectedPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
             Vector3 groundNormal;
@@ -302,8 +312,16 @@ namespace TankRoyale.Gameplay
             }
             else
             {
-                Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, groundNormal).normalized;
-                _planarVelocity += new Vector3(downhill.x, 0f, downhill.z) * (steepSlopeSlideAccel * Time.fixedDeltaTime);
+                if (hasThrottleInput || allowPassiveSlopeSlide)
+                {
+                    Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, groundNormal).normalized;
+                    _planarVelocity += new Vector3(downhill.x, 0f, downhill.z) * (steepSlopeSlideAccel * Time.fixedDeltaTime);
+                }
+            }
+
+            if (!hasThrottleInput && _planarVelocity.magnitude < idleStopSpeed)
+            {
+                _planarVelocity = Vector3.zero;
             }
 
             Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
