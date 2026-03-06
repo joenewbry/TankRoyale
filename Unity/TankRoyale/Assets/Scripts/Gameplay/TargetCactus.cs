@@ -7,6 +7,9 @@ namespace TankRoyale.Gameplay
     {
         [SerializeField] private float barYOffset = 2.2f;
         [SerializeField] private Vector2 barSize = new Vector2(84f, 10f);
+        [SerializeField] private float defeatPopupHeight = 2.8f;
+        [SerializeField] private float defeatPopupDuration = 1.4f;
+        [SerializeField] private Color defeatPopupColor = new Color(1f, 0.35f, 0.35f, 1f);
 
         private int _currentHits;
         private int _maxHits = 5;
@@ -50,6 +53,8 @@ namespace TankRoyale.Gameplay
         {
             _destroyed = true;
             _respawnAt = Time.time + Mathf.Max(0.1f, TargetCactusSettings.RespawnSeconds);
+            ClearAttachedSplatters();
+            SpawnDefeatPopup();
             SetVisible(false);
         }
 
@@ -59,7 +64,96 @@ namespace TankRoyale.Gameplay
             _currentHits = 0;
             _maxHits = Mathf.Max(1, TargetCactusSettings.HitsToDestroy);
             _wasHit = false;
+            ClearAttachedSplatters();
             SetVisible(true);
+        }
+
+        private void SpawnDefeatPopup()
+        {
+            GameObject popup = new GameObject("DefeatPopup");
+            popup.transform.position = transform.position + Vector3.up * defeatPopupHeight;
+            TextMesh text = popup.AddComponent<TextMesh>();
+            text.text = "DEFEAT";
+            text.alignment = TextAlignment.Center;
+            text.anchor = TextAnchor.MiddleCenter;
+            text.fontSize = 48;
+            text.characterSize = 0.08f;
+            text.color = defeatPopupColor;
+
+            MeshRenderer r = popup.GetComponent<MeshRenderer>();
+            if (r != null)
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+
+            StartCoroutine(AnimateDefeatPopup(popup, Mathf.Max(0.2f, defeatPopupDuration)));
+        }
+
+        private System.Collections.IEnumerator AnimateDefeatPopup(GameObject popup, float duration)
+        {
+            if (popup == null)
+            {
+                yield break;
+            }
+
+            TextMesh tm = popup.GetComponent<TextMesh>();
+            Color baseColor = tm != null ? tm.color : defeatPopupColor;
+            Vector3 startPos = popup.transform.position;
+            Vector3 endPos = startPos + Vector3.up * 1.4f;
+            Vector3 startScale = Vector3.one * 0.25f;
+            Vector3 endScale = Vector3.one * 1.2f;
+
+            float t = 0f;
+            while (t < duration && popup != null)
+            {
+                t += Time.deltaTime;
+                float a = Mathf.Clamp01(t / duration);
+                float eased = 1f - Mathf.Pow(1f - a, 3f);
+
+                popup.transform.position = Vector3.Lerp(startPos, endPos, eased);
+                popup.transform.localScale = Vector3.Lerp(startScale, endScale, eased);
+
+                if (Camera.main != null)
+                {
+                    Vector3 lookDir = popup.transform.position - Camera.main.transform.position;
+                    if (lookDir.sqrMagnitude > 0.001f)
+                    {
+                        popup.transform.rotation = Quaternion.LookRotation(lookDir.normalized, Vector3.up);
+                    }
+                }
+
+                if (tm != null)
+                {
+                    float alpha = 1f - Mathf.SmoothStep(0f, 1f, a);
+                    tm.color = new Color(baseColor.r, baseColor.g, baseColor.b, alpha);
+                }
+
+                yield return null;
+            }
+
+            if (popup != null)
+            {
+                Destroy(popup);
+            }
+        }
+
+        private void ClearAttachedSplatters()
+        {
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t == null || t == transform)
+                {
+                    continue;
+                }
+
+                if (t.name.StartsWith("PaintSplat"))
+                {
+                    Destroy(t.gameObject);
+                }
+            }
         }
 
         private void SetVisible(bool isVisible)
