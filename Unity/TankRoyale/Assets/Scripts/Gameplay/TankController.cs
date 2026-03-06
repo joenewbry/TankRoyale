@@ -424,7 +424,8 @@ namespace TankRoyale.Gameplay
 
             planarAim.Normalize();
 
-            float targetYaw = Vector3.SignedAngle(basis.forward, planarAim, Vector3.up);
+            // Keep turret world aim independent from hull rotation.
+            float targetYaw = Mathf.Atan2(planarAim.x, planarAim.z) * Mathf.Rad2Deg;
             float targetPitch = Mathf.Asin(Mathf.Clamp(lookForward.y, -1f, 1f)) * Mathf.Rad2Deg;
             targetPitch *= mouseTurretSensitivity;
             targetPitch = Mathf.Clamp(targetPitch, minTurretPitch, maxTurretPitch);
@@ -432,8 +433,7 @@ namespace TankRoyale.Gameplay
             _turretYaw = Mathf.MoveTowardsAngle(_turretYaw, targetYaw, turretRotationSpeed * Time.deltaTime);
             _turretPitch = Mathf.MoveTowards(_turretPitch, targetPitch, turretRotationSpeed * Time.deltaTime);
 
-            Quaternion targetLocal = Quaternion.Euler(_turretPitch, _turretYaw, 0f);
-            Quaternion targetWorld = basis.rotation * targetLocal;
+            Quaternion targetWorld = Quaternion.Euler(_turretPitch, _turretYaw, 0f);
             turret.rotation = Quaternion.RotateTowards(turret.rotation, targetWorld, turretRotationSpeed * Time.deltaTime);
         }
 
@@ -539,16 +539,15 @@ namespace TankRoyale.Gameplay
 
         private void InitializeTurretAimState()
         {
-            Transform basis = tankBody != null ? tankBody : transform;
             if (turret == null)
             {
                 _turretAimInitialized = false;
                 return;
             }
 
-            Vector3 localEuler = (Quaternion.Inverse(basis.rotation) * turret.rotation).eulerAngles;
-            _turretYaw = NormalizeDegrees(localEuler.y);
-            _turretPitch = NormalizeDegrees(localEuler.x);
+            Vector3 worldEuler = turret.rotation.eulerAngles;
+            _turretYaw = NormalizeDegrees(worldEuler.y);
+            _turretPitch = NormalizeDegrees(worldEuler.x);
             _turretAimInitialized = true;
 
             _turretYaw = Mathf.Repeat(_turretYaw, 360f);

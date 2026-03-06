@@ -6,7 +6,7 @@ Live queue I will run through continuously. Add new tasks any time with `push: <
 - Queue total: **8**
 - In progress: **2**
 - Queued: **6**
-- Done (recent): **13**
+- Done (recent): **14**
 
 ## In Progress
 - [ ] Tank driving feel + camera/combat debug pass
@@ -21,6 +21,7 @@ Live queue I will run through continuously. Add new tasks any time with `push: <
 - [ ] Expand debug menu options (rendering/shader/ray/arc toggles)
 
 ## Done (Recent)
+- [x] Turret aim decoupled from hull/body rotation + `PlayTest11`
 - [x] Added reset hotkey (`R`) to reload world + `PlayTest10`
 - [x] Added 5 camera modes (IN_TANK, STARE_DOWN_MUZZLE, TOP_OF_TANK, OVERHEAD_VIEW, WORLD_EXPLORER), arrow-key aliases, live trajectory line, and tread-animation-on-throttle
 - [x] Removed idle drift/creep with stronger braking and no passive slope slide + `PlayTest9`
