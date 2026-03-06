@@ -10,7 +10,7 @@ namespace TankRoyale.Gameplay
     public class Projectile : MonoBehaviour
     {
         [SerializeField] private float lifetimeSeconds = 5f;
-        [SerializeField] private int maxBounces = 3;
+        [SerializeField] private int maxBounces = 10;
         [Header("Paintball Splatter")]
         [SerializeField] private bool spawnPaintSplatters = true;
         [SerializeField] private Color splatterColor = new Color(0.95f, 0.2f, 0.3f, 1f);
@@ -227,7 +227,7 @@ namespace TankRoyale.Gameplay
 
             Vector3 incoming = _rigidbody != null ? _rigidbody.linearVelocity : _lastVelocity;
             Vector3 reflectedVelocity = Vector3.Reflect(incoming, collisionNormal);
-            reflectedVelocity *= 0.9f;
+            reflectedVelocity *= 0.97f;
             SpawnPaintSplat(point, collisionNormal, hitParent);
 
             if (_rigidbody != null)

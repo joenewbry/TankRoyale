@@ -16,7 +16,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private GameObject projectilePrefab;
         [SerializeField] private float fireRate = 0.15f;
         [SerializeField] private float bulletSpeed = 20f;
-        [SerializeField] private bool useBallisticArc = true;
+        [SerializeField] private bool useBallisticArc = false;
         [SerializeField] [Range(0f, 45f)] private float launchAngleDegrees = 14f;
         [SerializeField] private float fallbackSphereScale = 0.2f;
         [SerializeField] private bool useFallbackSphereWhenPrefabMissing = true;
@@ -185,9 +185,9 @@ namespace TankRoyale.Gameplay
 
             _bouncyProjectileMaterial = new PhysicsMaterial("TankRoyale_Projectile_Bounce")
             {
-                bounciness = 0.6f,
-                dynamicFriction = 0.05f,
-                staticFriction = 0.05f,
+                bounciness = 0.92f,
+                dynamicFriction = 0.01f,
+                staticFriction = 0.01f,
                 bounceCombine = PhysicsMaterialCombine.Maximum,
                 frictionCombine = PhysicsMaterialCombine.Minimum
             };
