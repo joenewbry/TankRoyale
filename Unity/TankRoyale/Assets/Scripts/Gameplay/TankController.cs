@@ -29,7 +29,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float groundSnapHeight = 0.08f;
         [SerializeField] private float groundProbeHeight = 1.8f;
         [SerializeField] private bool invertMovement = false;
-        [SerializeField] private bool useEightWayMovement = true;
+        [SerializeField] private bool useDigitalTankInput = true;
         [SerializeField] private float maxClimbSlopeAngle = 42f;
         [SerializeField] private float steepSlopeSlideAccel = 6f;
         [SerializeField] private float minClimbEntrySpeed = 2.6f;
@@ -145,7 +145,7 @@ namespace TankRoyale.Gameplay
         private void FixedUpdate()
         {
             MoveTank();
-            RotateBodyToMovement();
+            RotateBodyFromTurnInput();
         }
 
         public void TakeDamage(int amount, string attackerPlayerId = null)
@@ -196,16 +196,16 @@ namespace TankRoyale.Gameplay
 
         private void ReadMovementInput()
         {
+            // Tank input: x = turn (-1 left, +1 right), y = throttle (+1 forward, -1 backward)
             float x;
             float y;
 
-            if (useEightWayMovement)
+            if (useDigitalTankInput)
             {
                 int right = Input.GetKey(KeyCode.D) ? 1 : 0;
                 int left = Input.GetKey(KeyCode.A) ? 1 : 0;
                 int up = Input.GetKey(KeyCode.W) ? 1 : 0;
                 int down = Input.GetKey(KeyCode.S) ? 1 : 0;
-
                 x = right - left;
                 y = up - down;
             }
@@ -234,7 +234,8 @@ namespace TankRoyale.Gameplay
         {
             float targetSpeed = GetCurrentMoveSpeed();
             Transform basis = tankBody != null ? tankBody : transform;
-            Vector3 desiredDirection = (basis.right * _moveInput.x) + (basis.forward * _moveInput.y);
+            float throttle = _moveInput.y;
+            Vector3 desiredDirection = basis.forward * throttle;
             desiredDirection.y = 0f;
             if (desiredDirection.sqrMagnitude > 1f)
             {
@@ -303,20 +304,16 @@ namespace TankRoyale.Gameplay
             _rigidbody.MovePosition(targetPosition);
         }
 
-        private void RotateBodyToMovement()
+        private void RotateBodyFromTurnInput()
         {
-            Vector3 moveDirection = _planarVelocity;
-            if (moveDirection.sqrMagnitude <= 0.01f)
+            float turn = _moveInput.x;
+            if (Mathf.Abs(turn) <= 0.001f)
             {
                 return;
             }
 
-            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized, Vector3.up);
             Transform body = tankBody != null ? tankBody : transform;
-            body.rotation = Quaternion.RotateTowards(
-                body.rotation,
-                targetRotation,
-                rotationSpeed * Time.fixedDeltaTime);
+            body.Rotate(0f, turn * rotationSpeed * Time.fixedDeltaTime, 0f, Space.World);
         }
 
         private void RotateTurretToMouse()

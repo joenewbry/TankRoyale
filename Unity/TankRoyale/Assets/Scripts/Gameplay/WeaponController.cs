@@ -202,14 +202,9 @@ namespace TankRoyale.Gameplay
 
             if (useBallisticArc)
             {
-                float angleRad = launchAngleDegrees * Mathf.Deg2Rad;
-                Vector3 planarForward = Vector3.ProjectOnPlane(launchDirection, Vector3.up).normalized;
-                if (planarForward.sqrMagnitude <= 0.0001f)
-                {
-                    planarForward = origin.forward;
-                }
-
-                launchDirection = (planarForward + Vector3.up * Mathf.Tan(angleRad)).normalized;
+                // Add arc relative to current aim orientation so looking up/down behaves intuitively.
+                launchDirection = Quaternion.AngleAxis(launchAngleDegrees, origin.right) * launchDirection;
+                launchDirection.Normalize();
             }
 
             return launchDirection * bulletSpeed;

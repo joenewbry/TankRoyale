@@ -15,6 +15,7 @@ Use this as the live task stack. I will keep it updated and commit incrementally
 - [queued] Expand debug menu options (hitboxes, rendering modes, shader/ray/arc toggles)
 
 ## Done (recent)
+- [done] Tank controls switched to throttle+turn (W/S move, A/D rotate) + trajectory flip fix + `PlayTest6`
 - [done] 3-view Tab cycle finalized (TopDown/Shoulder/Cockpit) + cockpit target overlay + `PlayTest5`
 - [done] Paintball-style projectile splatter on contact + `PlayTest4` snapshot
 - [done] Added `PlayTest3` snapshot for current tread-direction iteration
