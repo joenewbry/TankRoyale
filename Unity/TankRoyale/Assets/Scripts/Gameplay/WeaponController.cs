@@ -202,8 +202,15 @@ namespace TankRoyale.Gameplay
 
             if (useBallisticArc)
             {
-                // Add arc relative to current aim orientation so looking up/down behaves intuitively.
-                launchDirection = Quaternion.AngleAxis(launchAngleDegrees, origin.right) * launchDirection;
+                // Positive pitch should bias upward from current aim.
+                Vector3 pitchAxis = Vector3.Cross(Vector3.up, launchDirection);
+                if (pitchAxis.sqrMagnitude <= 0.0001f)
+                {
+                    pitchAxis = origin.right;
+                }
+                pitchAxis.Normalize();
+
+                launchDirection = Quaternion.AngleAxis(-launchAngleDegrees, pitchAxis) * launchDirection;
                 launchDirection.Normalize();
             }
 
