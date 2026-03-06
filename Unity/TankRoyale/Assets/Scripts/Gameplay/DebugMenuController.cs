@@ -79,7 +79,7 @@ namespace TankRoyale.Gameplay
             GUILayout.Label("F2: Hitboxes");
             GUILayout.Label("F3: Rays");
             GUILayout.Label("F4: Arc");
-            GUILayout.Label("Tab: Cycle Camera (Top/Shoulder/Front)");
+            GUILayout.Label("Tab: Cycle Camera (IN_TANK/MUZZLE/TOP/OVERHEAD/WORLD)");
 
             GUI.DragWindow(new Rect(0f, 0f, 5000f, 22f));
         }

@@ -38,7 +38,8 @@ namespace TankRoyale.Gameplay
         private Vector3 _lastBounceNormal;
         private Vector3 _lastBounceOut;
         private Vector3 _lastPosition;
-        private float _collisionRadius = 0.08f;
+        private const float MinCollisionRadius = 0.12f;
+        private float _collisionRadius = MinCollisionRadius;
         private bool _positionInitialized;
         private static Material _splatterMaterial;
 
@@ -73,16 +74,41 @@ namespace TankRoyale.Gameplay
             float distance = travel.magnitude;
             if (distance > 0.0001f)
             {
-                RaycastHit hit;
-                if (Physics.SphereCast(_lastPosition, _collisionRadius, travel / distance, out hit, distance, ~0, QueryTriggerInteraction.Ignore))
+                Vector3 direction = travel / distance;
+                RaycastHit[] hits = Physics.SphereCastAll(
+                    _lastPosition,
+                    _collisionRadius,
+                    direction,
+                    distance,
+                    ~0,
+                    QueryTriggerInteraction.Ignore);
+
+                RaycastHit nearest = default;
+                bool foundHit = false;
+                float nearestDistance = float.MaxValue;
+
+                for (int i = 0; i < hits.Length; i++)
                 {
-                    if (hit.collider != null && !IsSelfCollider(hit.collider))
+                    RaycastHit candidate = hits[i];
+                    if (candidate.collider == null || IsSelfCollider(candidate.collider))
                     {
-                        _rigidbody.position = hit.point - (travel / distance) * Mathf.Max(0.005f, _collisionRadius * 0.2f);
-                        HandleImpact(hit.collider, hit.point, hit.normal);
-                        _lastPosition = _rigidbody.position;
-                        return;
+                        continue;
                     }
+
+                    if (candidate.distance < nearestDistance)
+                    {
+                        nearestDistance = candidate.distance;
+                        nearest = candidate;
+                        foundHit = true;
+                    }
+                }
+
+                if (foundHit)
+                {
+                    _rigidbody.position = nearest.point - direction * Mathf.Max(0.005f, _collisionRadius * 0.2f);
+                    HandleImpact(nearest.collider, nearest.point, nearest.normal);
+                    _lastPosition = _rigidbody.position;
+                    return;
                 }
             }
 
@@ -370,7 +396,7 @@ namespace TankRoyale.Gameplay
             if (sphere != null)
             {
                 float scale = Mathf.Max(Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.y), Mathf.Abs(transform.lossyScale.z));
-                _collisionRadius = Mathf.Max(0.04f, sphere.radius * scale);
+                _collisionRadius = Mathf.Max(MinCollisionRadius, sphere.radius * scale);
                 return;
             }
 
@@ -378,14 +404,14 @@ namespace TankRoyale.Gameplay
             if (capsule != null)
             {
                 float scale = Mathf.Max(Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.y), Mathf.Abs(transform.lossyScale.z));
-                _collisionRadius = Mathf.Max(0.04f, capsule.radius * scale);
+                _collisionRadius = Mathf.Max(MinCollisionRadius, capsule.radius * scale);
                 return;
             }
 
             Collider c = GetComponent<Collider>();
             if (c != null)
             {
-                _collisionRadius = Mathf.Max(0.04f, c.bounds.extents.magnitude * 0.25f);
+                _collisionRadius = Mathf.Max(MinCollisionRadius, c.bounds.extents.magnitude * 0.25f);
             }
         }
 

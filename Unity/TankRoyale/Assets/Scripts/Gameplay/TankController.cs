@@ -56,6 +56,7 @@ namespace TankRoyale.Gameplay
 
         [Header("Treads")]
         [SerializeField] private bool animateTreads = true;
+        [SerializeField] private bool syncDetachedTreadsToBody = true;
         [SerializeField] private bool useLegacyTreadRotationFallback = false;
         [SerializeField] private float treadMaxSpinSpeed = 900f;
         [SerializeField] private float treadSpinAcceleration = 2800f;
@@ -630,7 +631,13 @@ namespace TankRoyale.Gameplay
 
             UpdateTreadAnimatorParams(leftInput, rightInput);
 
-            if (!useLegacyTreadRotationFallback)
+            if (syncDetachedTreadsToBody)
+            {
+                SyncTreadHierarchyToBody();
+            }
+
+            bool hasAnimatorDrivenTreads = _treadAnimators != null && _treadAnimators.Length > 0;
+            if (!useLegacyTreadRotationFallback || hasAnimatorDrivenTreads)
             {
                 return;
             }
@@ -747,6 +754,44 @@ namespace TankRoyale.Gameplay
             }
 
             _treadAnimators = animators.ToArray();
+            if (syncDetachedTreadsToBody)
+            {
+                SyncTreadHierarchyToBody();
+            }
+        }
+
+        private void SyncTreadHierarchyToBody()
+        {
+            Transform body = tankBody != null ? tankBody : transform;
+            if (body == null)
+            {
+                return;
+            }
+
+            ReparentDetachedTreads(_leftTreads, body);
+            ReparentDetachedTreads(_rightTreads, body);
+        }
+
+        private static void ReparentDetachedTreads(Transform[] treads, Transform body)
+        {
+            if (treads == null || body == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < treads.Length; i++)
+            {
+                Transform tread = treads[i];
+                if (tread == null || tread == body)
+                {
+                    continue;
+                }
+
+                if (!tread.IsChildOf(body))
+                {
+                    tread.SetParent(body, true);
+                }
+            }
         }
 
         private void UpdateTreadAnimatorParams(float leftInput, float rightInput)

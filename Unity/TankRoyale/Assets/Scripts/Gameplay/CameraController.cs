@@ -107,7 +107,9 @@ namespace TankRoyale.Gameplay
 
         private void LateUpdate()
         {
-            if (allowModeToggle && switchKey != KeyCode.None && Input.GetKeyDown(switchKey))
+            bool tabPressed = Input.GetKeyDown(KeyCode.Tab);
+            bool configuredSwitchPressed = allowModeToggle && switchKey != KeyCode.None && Input.GetKeyDown(switchKey);
+            if (tabPressed || configuredSwitchPressed)
             {
                 SetMode((_mode + 1) % 5);
             }
