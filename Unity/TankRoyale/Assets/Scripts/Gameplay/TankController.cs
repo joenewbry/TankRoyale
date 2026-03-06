@@ -615,6 +615,7 @@ namespace TankRoyale.Gameplay
         {
             // Search from tank root (not only body) because many prefabs place tracks as siblings of hull.
             Transform root = transform;
+            Transform sideBasis = tankBody != null ? tankBody : transform;
             Transform[] all = root.GetComponentsInChildren<Transform>(true);
             System.Collections.Generic.List<Transform> left = new System.Collections.Generic.List<Transform>(4);
             System.Collections.Generic.List<Transform> right = new System.Collections.Generic.List<Transform>(4);
@@ -633,8 +634,9 @@ namespace TankRoyale.Gameplay
 
                 if (!isLeft && !isRight)
                 {
-                    Vector3 localPos = root.InverseTransformPoint(t.position);
-                    isLeft = localPos.x < 0f;
+                    // Use body orientation for side detection so tracks follow visible mesh orientation.
+                    float sideDot = Vector3.Dot(sideBasis.right, (t.position - sideBasis.position));
+                    isLeft = sideDot < 0f;
                     isRight = !isLeft;
                 }
 

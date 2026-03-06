@@ -4,6 +4,7 @@ Use this as the live task stack. I will keep it updated and commit incrementally
 
 ## Active
 - [in_progress] Tank driving feel + camera/combat debug pass
+- [in_progress] Per-iteration PlayTest scene snapshots with each commit
 
 ## Queued
 - [queued] Verify tread rotation is visible on all player/enemy tank prefabs
@@ -14,6 +15,7 @@ Use this as the live task stack. I will keep it updated and commit incrementally
 - [queued] Expand debug menu options (hitboxes, rendering modes, shader/ray/arc toggles)
 
 ## Done (recent)
+- [done] Added `PlayTest3` snapshot for current tread-direction iteration
 - [done] Mouse look drives camera instead of directly twisting turret mesh
 - [done] Added runtime fill light for side-face readability
 - [done] Added on-screen debug menu with hitbox/ray/arc/wireframe toggles
