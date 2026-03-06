@@ -54,6 +54,7 @@ namespace TankRoyale.Gameplay
             _destroyed = true;
             _respawnAt = Time.time + Mathf.Max(0.1f, TargetCactusSettings.RespawnSeconds);
             ClearAttachedSplatters();
+            CoinDropEffect.SpawnAt(transform.position + Vector3.up * 0.35f);
             SpawnDefeatPopup();
             SetVisible(false);
         }

@@ -18,6 +18,8 @@ namespace TankRoyale.Gameplay
         [SerializeField] private string mainMenuScene = "MainMenu";
         [SerializeField] private KeyCode resetHotkey = KeyCode.R;
         [SerializeField] private bool resetHotkeyResetsPlayerPosition = true;
+        [SerializeField] private string playerSpawnMarkerName = "Prop_Tank_Spawn_01";
+        [SerializeField] private float playerSpawnYOffset = 0.8f;
 
         // Runtime references (found on Start)
         private TankController _playerTank;
@@ -67,6 +69,7 @@ namespace TankRoyale.Gameplay
             // Find tanks by tag
             var playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null) _playerTank = playerObj.GetComponent<TankController>();
+            MovePlayerToSpawnMarkerIfFound();
             CachePlayerSpawn();
 
             foreach (var go in GameObject.FindGameObjectsWithTag("Enemy"))
@@ -106,6 +109,55 @@ namespace TankRoyale.Gameplay
             _playerSpawnPosition = _playerTank.transform.position;
             _playerSpawnRotation = _playerTank.transform.rotation;
             _playerSpawnCached = true;
+        }
+
+        private void MovePlayerToSpawnMarkerIfFound()
+        {
+            if (_playerTank == null)
+            {
+                return;
+            }
+
+            Transform marker = ResolveSpawnMarker();
+            if (marker == null)
+            {
+                return;
+            }
+
+            Vector3 targetPosition = marker.position + Vector3.up * Mathf.Max(0f, playerSpawnYOffset);
+            _playerTank.transform.SetPositionAndRotation(targetPosition, marker.rotation);
+
+            Rigidbody rb = _playerTank.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+        }
+
+        private Transform ResolveSpawnMarker()
+        {
+            if (string.IsNullOrWhiteSpace(playerSpawnMarkerName))
+            {
+                return null;
+            }
+
+            Transform[] all = FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t == null)
+                {
+                    continue;
+                }
+
+                if (t.name == playerSpawnMarkerName || t.name.Contains(playerSpawnMarkerName))
+                {
+                    return t;
+                }
+            }
+
+            return null;
         }
 
         private void EnsureCoreSystems()

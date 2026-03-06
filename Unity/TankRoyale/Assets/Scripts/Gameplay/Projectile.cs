@@ -168,6 +168,15 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
+            DestructibleProp destructibleProp = hitCollider.GetComponentInParent<DestructibleProp>();
+            if (destructibleProp != null)
+            {
+                destructibleProp.ApplyHit(1);
+                SpawnPaintSplat(point, normal, hitCollider.transform);
+                Destroy(gameObject);
+                return;
+            }
+
             if (hitObject.CompareTag("Player") || hitObject.CompareTag("Enemy"))
             {
                 HandleTankCollision(hitCollider, point, normal);
