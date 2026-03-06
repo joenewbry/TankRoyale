@@ -63,6 +63,7 @@ namespace TankRoyale.Gameplay
             GUILayout.Space(8f);
             GUILayout.Label("Debug / Settings");
             GUILayout.Label("K: Toggle this settings menu");
+            GUILayout.Label("P: Toggle asset palette menu");
             GUILayout.Label("Right Mouse: Place selected build block");
             GUILayout.Label("Mouse Wheel: Cycle build block options");
             GUILayout.Label("G: Toggle god mode");
