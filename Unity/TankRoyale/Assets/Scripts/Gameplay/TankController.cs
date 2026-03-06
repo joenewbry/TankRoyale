@@ -159,10 +159,15 @@ namespace TankRoyale.Gameplay
         private void Update()
         {
             ReadMovementInput();
-            RotateTurretToMouse();
             UpdateTreadVisuals();
             UpdateTrajectoryLine();
             HandleFireInput();
+        }
+
+        private void LateUpdate()
+        {
+            // Run turret stabilization after movement/physics updates to reduce visual jitter.
+            RotateTurretToMouse();
         }
 
         private void FixedUpdate()
@@ -219,7 +224,7 @@ namespace TankRoyale.Gameplay
 
         private void ReadMovementInput()
         {
-            // Tank input: x = turn (-1 left, +1 right), y = throttle (+1 forward, -1 backward)
+            // Tank input: x = turn (+1 left, -1 right), y = throttle (+1 forward, -1 backward)
             float x;
             float y;
 
@@ -229,12 +234,13 @@ namespace TankRoyale.Gameplay
                 int left = (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1 : 0;
                 int up = (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1 : 0;
                 int down = (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1 : 0;
-                x = right - left;
+                // Keep turn sign aligned with tank-track math: +x = left turn (A), -x = right turn (D).
+                x = left - right;
                 y = up - down;
             }
             else
             {
-                x = Input.GetAxisRaw("Horizontal");
+                x = -Input.GetAxisRaw("Horizontal");
                 y = Input.GetAxisRaw("Vertical");
             }
 
