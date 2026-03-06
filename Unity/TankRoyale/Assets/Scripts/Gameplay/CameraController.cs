@@ -92,6 +92,7 @@ namespace TankRoyale.Gameplay
 
         private static Texture2D _overlayPixel;
         public bool IsInTankMode => _mode == InTankMode;
+        public bool IsWorldExplorerMode => _mode == WorldExplorerMode;
 
         public Vector3 AimForward
         {
@@ -355,7 +356,7 @@ namespace TankRoyale.Gameplay
                 Vector3 forward = GetStableTankForward();
                 float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
                 Vector3 lookForward = Quaternion.Euler(topOfTankPitch, yaw, 0f) * Vector3.forward;
-                return Quaternion.LookRotation(lookForward.normalized, Vector3.up);
+                return Quaternion.LookRotation(lookForward.normalized, GetCameraUpVector(0.45f));
             }
 
             return transform.rotation;

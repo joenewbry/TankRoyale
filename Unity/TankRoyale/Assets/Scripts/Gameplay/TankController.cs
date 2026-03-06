@@ -51,6 +51,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
         [SerializeField] private float maxSlopeTiltAngle = 34f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
+        [SerializeField] private float groundNormalSmoothing = 14f;
         [SerializeField] private float groundSampleRadius = 0.58f;
         [SerializeField] private float rampGripAcceleration = 14f;
         [SerializeField] private float rampGripNormalMinY = 0.28f;
@@ -314,6 +315,12 @@ namespace TankRoyale.Gameplay
 
         private void ReadMovementInput()
         {
+            if (ShouldSuppressTankInputForCurrentCameraMode())
+            {
+                _moveInput = Vector2.zero;
+                return;
+            }
+
             // Tank input: x = turn (+1 left, -1 right), y = throttle (+1 forward, -1 backward)
             float x;
             float y;
@@ -381,15 +388,25 @@ namespace TankRoyale.Gameplay
             Vector3 groundNormal;
             float groundY = SampleGroundHeight(projectedPosition, out groundNormal);
             ApplyRampGrip(basis, throttle, hasThrottleInput, ref groundY, ref groundNormal);
-            _groundNormal = groundNormal.sqrMagnitude > 0.0001f ? groundNormal.normalized : Vector3.up;
-            float slopeAngle = Vector3.Angle(groundNormal, Vector3.up);
+            Vector3 sampledNormal = groundNormal.sqrMagnitude > 0.0001f ? groundNormal.normalized : Vector3.up;
+            if (_groundNormal.sqrMagnitude <= 0.0001f)
+            {
+                _groundNormal = sampledNormal;
+            }
+            else
+            {
+                float smooth = Mathf.Clamp01(Mathf.Max(0.01f, groundNormalSmoothing) * Time.fixedDeltaTime);
+                _groundNormal = Vector3.Slerp(_groundNormal.normalized, sampledNormal, smooth);
+            }
+
+            float slopeAngle = Vector3.Angle(_groundNormal, Vector3.up);
             float slopeFactor = Mathf.InverseLerp(0f, Mathf.Max(1f, maxClimbSlopeAngle), slopeAngle);
             Vector3 planarVelocity = new Vector3(_planarVelocity.x, 0f, _planarVelocity.z);
             float planarSpeed = planarVelocity.magnitude;
 
             if (slopeAngle <= maxClimbSlopeAngle)
             {
-                Vector3 uphillDir = Vector3.ProjectOnPlane(Vector3.up, groundNormal).normalized;
+                Vector3 uphillDir = Vector3.ProjectOnPlane(Vector3.up, _groundNormal).normalized;
                 Vector3 uphillPlanar = new Vector3(uphillDir.x, 0f, uphillDir.z);
                 if (uphillPlanar.sqrMagnitude > 0.0001f)
                 {
@@ -411,7 +428,7 @@ namespace TankRoyale.Gameplay
                 }
                 else
                 {
-                    Vector3 slopeAdjusted = Vector3.ProjectOnPlane(_planarVelocity, groundNormal);
+                    Vector3 slopeAdjusted = Vector3.ProjectOnPlane(_planarVelocity, _groundNormal);
                     _planarVelocity = new Vector3(slopeAdjusted.x, 0f, slopeAdjusted.z);
 
                     float drag = slopeDrag * (0.35f + slopeFactor);
@@ -427,7 +444,7 @@ namespace TankRoyale.Gameplay
             {
                 if (hasThrottleInput || allowPassiveSlopeSlide)
                 {
-                    Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, groundNormal).normalized;
+                    Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, _groundNormal).normalized;
                     _planarVelocity += new Vector3(downhill.x, 0f, downhill.z) * (steepSlopeSlideAccel * Time.fixedDeltaTime);
                 }
             }
@@ -775,24 +792,44 @@ namespace TankRoyale.Gameplay
                 lookForward = cameraController.AimForward;
             }
 
-            Vector3 planarAim = Vector3.ProjectOnPlane(lookForward, Vector3.up);
+            Vector3 upAxis = basis.up.sqrMagnitude > 0.0001f ? basis.up.normalized : Vector3.up;
+            Vector3 baseForward = Vector3.ProjectOnPlane(basis.forward, upAxis);
+            if (baseForward.sqrMagnitude <= 0.0001f)
+            {
+                baseForward = Vector3.ProjectOnPlane(transform.forward, upAxis);
+            }
+            if (baseForward.sqrMagnitude <= 0.0001f)
+            {
+                baseForward = Vector3.forward;
+            }
+            baseForward.Normalize();
+
+            Vector3 planarAim = Vector3.ProjectOnPlane(lookForward, upAxis);
             if (planarAim.sqrMagnitude <= 0.0001f)
             {
-                planarAim = basis.forward;
+                planarAim = baseForward;
             }
 
             planarAim.Normalize();
 
-            // Keep turret world aim independent from hull rotation.
-            float targetYaw = Mathf.Atan2(planarAim.x, planarAim.z) * Mathf.Rad2Deg;
-            float targetPitch = Mathf.Asin(Mathf.Clamp(lookForward.y, -1f, 1f)) * Mathf.Rad2Deg;
+            float targetYaw = Vector3.SignedAngle(baseForward, planarAim, upAxis);
+            Vector3 rightAxis = Vector3.Cross(upAxis, planarAim);
+            if (rightAxis.sqrMagnitude <= 0.0001f)
+            {
+                rightAxis = basis.right;
+            }
+            rightAxis.Normalize();
+            float targetPitch = Vector3.SignedAngle(planarAim, lookForward.normalized, rightAxis);
             targetPitch *= mouseTurretSensitivity;
             targetPitch = Mathf.Clamp(targetPitch, minTurretPitch, maxTurretPitch);
 
             _turretYaw = Mathf.MoveTowardsAngle(_turretYaw, targetYaw, turretRotationSpeed * Time.deltaTime);
             _turretPitch = Mathf.MoveTowards(_turretPitch, targetPitch, turretRotationSpeed * Time.deltaTime);
 
-            Quaternion targetWorld = Quaternion.Euler(_turretPitch, _turretYaw, 0f);
+            Quaternion yawWorld = Quaternion.AngleAxis(_turretYaw, upAxis);
+            Quaternion yawedFrame = yawWorld * Quaternion.LookRotation(baseForward, upAxis);
+            Vector3 pitchAxis = yawedFrame * Vector3.right;
+            Quaternion targetWorld = Quaternion.AngleAxis(_turretPitch, pitchAxis) * yawedFrame;
             Transform parent = turret.parent;
             if (parent != null)
             {
@@ -815,6 +852,22 @@ namespace TankRoyale.Gameplay
                     $"targetYaw={targetYaw:0.00} targetPitch={targetPitch:0.00} " +
                     $"stateYaw={_turretYaw:0.00} statePitch={_turretPitch:0.00}");
             }
+        }
+
+        private bool ShouldSuppressTankInputForCurrentCameraMode()
+        {
+            if (_cachedCamera == null)
+            {
+                _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
+            }
+
+            if (_cachedCamera == null)
+            {
+                return false;
+            }
+
+            CameraController cameraController = _cachedCamera.GetComponent<CameraController>();
+            return cameraController != null && cameraController.IsWorldExplorerMode;
         }
 
         private Transform ResolveBodyTransform()
