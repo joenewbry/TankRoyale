@@ -96,7 +96,7 @@ namespace TankRoyale.Gameplay
             {
                 if (_mode == InTankMode)
                 {
-                    return Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward;
+                    return transform.forward;
                 }
 
                 if (_mode == WorldExplorerMode)
@@ -306,8 +306,24 @@ namespace TankRoyale.Gameplay
 
             if (_mode == InTankMode)
             {
-                Vector3 lookForward = (Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward).normalized;
-                return Quaternion.LookRotation(lookForward, GetCameraUpVector());
+                Vector3 up = GetCameraUpVector();
+                Vector3 baseForward = GetStableTankForward();
+                Vector3 flattened = Vector3.ProjectOnPlane(baseForward, up);
+                if (flattened.sqrMagnitude <= 0.0001f)
+                {
+                    flattened = Vector3.ProjectOnPlane(transform.forward, up);
+                }
+                if (flattened.sqrMagnitude <= 0.0001f)
+                {
+                    flattened = Vector3.forward;
+                }
+
+                Quaternion baseRotation = Quaternion.LookRotation(flattened.normalized, up);
+                Quaternion yawRotation = Quaternion.AngleAxis(_yaw, up);
+                Vector3 pitchAxis = (yawRotation * baseRotation) * Vector3.right;
+                Quaternion pitchRotation = Quaternion.AngleAxis(_pitch, pitchAxis);
+                Quaternion final = pitchRotation * yawRotation * baseRotation;
+                return Quaternion.LookRotation(final * Vector3.forward, up);
             }
 
             if (_mode == StareDownMuzzleMode)
@@ -359,7 +375,7 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            _yaw = playerTank != null ? playerTank.eulerAngles.y : transform.eulerAngles.y;
+            _yaw = 0f;
             _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
             _lookInitialized = true;
         }
@@ -485,6 +501,12 @@ namespace TankRoyale.Gameplay
 
             if (_playerTankController != null)
             {
+                Vector3 bodyUp = _playerTankController.CurrentBodyUp;
+                if (bodyUp.sqrMagnitude > 0.0001f)
+                {
+                    return Vector3.Slerp(Vector3.up, bodyUp.normalized, 0.8f).normalized;
+                }
+
                 Vector3 groundNormal = _playerTankController.CurrentGroundNormal;
                 if (groundNormal.sqrMagnitude > 0.0001f)
                 {

@@ -58,6 +58,10 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float rampProbeForwardOffset = 0.78f;
         [SerializeField] private float rampProbeHeight = 0.9f;
         [SerializeField] private float rampProbeDownDistance = 1.8f;
+        [SerializeField] private float edgeProbeOffset = 0.58f;
+        [SerializeField] private float edgeProbeHeight = 0.9f;
+        [SerializeField] private float edgeProbeDownDistance = 1.8f;
+        [SerializeField] [Range(0f, 1f)] private float edgeTipStrength = 0.42f;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 420f;
@@ -138,6 +142,14 @@ namespace TankRoyale.Gameplay
         public float CurrentSpeed => _planarVelocity.magnitude;
         public float CurrentSlopeAngle => Vector3.Angle(_groundNormal, Vector3.up);
         public Vector3 CurrentGroundNormal => _groundNormal;
+        public Vector3 CurrentBodyUp
+        {
+            get
+            {
+                Transform body = tankBody != null ? tankBody : transform;
+                return body != null ? body.up : Vector3.up;
+            }
+        }
         public float ProjectileImpactStrength => projectileImpactStrength;
         public float CurrentTurnInput => _moveInput.x;
         public Vector3 AimForward
@@ -644,6 +656,7 @@ namespace TankRoyale.Gameplay
             }
 
             targetNormal = Vector3.Slerp(Vector3.up, targetNormal, Mathf.Clamp01(slopeTiltStrength));
+            targetNormal = ApplyEdgeTipBias(body, targetNormal);
             Vector3 forwardOnSlope = Vector3.ProjectOnPlane(body.forward, targetNormal);
             if (forwardOnSlope.sqrMagnitude <= 0.0001f)
             {
@@ -659,6 +672,58 @@ namespace TankRoyale.Gameplay
                 body.rotation,
                 targetRotation,
                 Mathf.Clamp01(slopeTiltResponsiveness * Time.fixedDeltaTime));
+        }
+
+        private Vector3 ApplyEdgeTipBias(Transform body, Vector3 baseNormal)
+        {
+            if (body == null || edgeTipStrength <= 0.001f)
+            {
+                return baseNormal;
+            }
+
+            Vector3 right = body.right;
+            Vector3 forward = body.forward;
+            right.y = 0f;
+            forward.y = 0f;
+            if (right.sqrMagnitude <= 0.0001f || forward.sqrMagnitude <= 0.0001f)
+            {
+                return baseNormal;
+            }
+
+            right.Normalize();
+            forward.Normalize();
+            Vector3 center = _rigidbody != null ? _rigidbody.position : transform.position;
+
+            bool hasFront = ProbeGroundAt(center + forward * edgeProbeOffset);
+            bool hasBack = ProbeGroundAt(center - forward * edgeProbeOffset);
+            bool hasRight = ProbeGroundAt(center + right * edgeProbeOffset);
+            bool hasLeft = ProbeGroundAt(center - right * edgeProbeOffset);
+
+            Vector3 tipBias = Vector3.zero;
+            if (!hasFront) tipBias += forward;
+            if (!hasBack) tipBias -= forward;
+            if (!hasRight) tipBias += right;
+            if (!hasLeft) tipBias -= right;
+
+            if (tipBias.sqrMagnitude <= 0.0001f)
+            {
+                return baseNormal;
+            }
+
+            Vector3 tipped = (baseNormal + tipBias.normalized * edgeTipStrength).normalized;
+            return Vector3.Slerp(baseNormal, tipped, edgeTipStrength);
+        }
+
+        private bool ProbeGroundAt(Vector3 worldPos)
+        {
+            Vector3 origin = worldPos + Vector3.up * Mathf.Max(0.2f, edgeProbeHeight);
+            if (!TrySampleGroundFrom(origin, Mathf.Max(0.2f, edgeProbeDownDistance), out float sampleY, out _))
+            {
+                return false;
+            }
+
+            float currentY = _rigidbody != null ? _rigidbody.position.y : transform.position.y;
+            return Mathf.Abs(currentY - sampleY) <= Mathf.Max(0.25f, maxStepHeight + 0.12f);
         }
 
         private void RotateTurretToMouse()
