@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Animations;
+using UnityEngine.Playables;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -30,18 +32,6 @@ namespace TankRoyale.Gameplay
             "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Source File/Prop_Badge_Victory_01.fbx",
             "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Source File/Prop_Pumpjack_01.fbx"
         };
-
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void EnsureManager()
-        {
-            if (Object.FindFirstObjectByType<AnimationShowcaseManager>() != null)
-            {
-                return;
-            }
-
-            GameObject go = new GameObject("AnimationShowcaseManager");
-            go.AddComponent<AnimationShowcaseManager>();
-        }
 
         private void Start()
         {
@@ -104,19 +94,13 @@ namespace TankRoyale.Gameplay
                 instance.transform.localPosition = Vector3.zero;
                 instance.transform.localRotation = Quaternion.identity;
                 instance.transform.localScale = Vector3.one;
-
-                Animation animation = instance.GetComponent<Animation>();
-                if (animation == null)
+                ShowcaseClipPlayer clipPlayer = instance.GetComponent<ShowcaseClipPlayer>();
+                if (clipPlayer == null)
                 {
-                    animation = instance.AddComponent<Animation>();
+                    clipPlayer = instance.AddComponent<ShowcaseClipPlayer>();
                 }
 
-                clip.wrapMode = WrapMode.Loop;
-                animation.playAutomatically = true;
-                animation.AddClip(clip, clip.name);
-                animation.clip = clip;
-                animation.wrapMode = WrapMode.Loop;
-                animation.Play(clip.name);
+                clipPlayer.Play(clip);
                 return;
             }
 #endif
@@ -149,6 +133,54 @@ namespace TankRoyale.Gameplay
                 float t = Time.time;
                 transform.position = _start + Vector3.up * (Mathf.Sin(t * 2f) * 0.2f);
                 transform.Rotate(0f, 65f * Time.deltaTime, 0f, Space.World);
+            }
+        }
+
+        private sealed class ShowcaseClipPlayer : MonoBehaviour
+        {
+            private PlayableGraph _graph;
+
+            public void Play(AnimationClip clip)
+            {
+                if (clip == null)
+                {
+                    return;
+                }
+
+                StopGraph();
+
+                Animator animator = GetComponent<Animator>();
+                if (animator == null)
+                {
+                    animator = gameObject.AddComponent<Animator>();
+                }
+
+                _graph = PlayableGraph.Create("AnimationShowcaseGraph");
+                AnimationPlayableOutput output = AnimationPlayableOutput.Create(_graph, "Animation", animator);
+                AnimationClipPlayable playable = AnimationClipPlayable.Create(_graph, clip);
+                playable.SetApplyFootIK(false);
+                playable.SetDuration(double.IsFinite(clip.length) && clip.length > 0.01f ? clip.length : 1d);
+                output.SetSourcePlayable(playable);
+                _graph.SetTimeUpdateMode(DirectorUpdateMode.GameTime);
+                _graph.Play();
+            }
+
+            private void OnDisable()
+            {
+                StopGraph();
+            }
+
+            private void OnDestroy()
+            {
+                StopGraph();
+            }
+
+            private void StopGraph()
+            {
+                if (_graph.IsValid())
+                {
+                    _graph.Destroy();
+                }
             }
         }
     }

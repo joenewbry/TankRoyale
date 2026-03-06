@@ -51,6 +51,8 @@ namespace TankRoyale.Gameplay
         public Color PaintColor => _paintColor;
         private static Texture2D _splatTexture;
         private bool _hasImpacted;
+        private Collider _recentRicochetCollider;
+        private float _ignoreRicochetColliderUntil;
 
         private void Awake()
         {
@@ -100,7 +102,7 @@ namespace TankRoyale.Gameplay
                 for (int i = 0; i < hits.Length; i++)
                 {
                     RaycastHit candidate = hits[i];
-                    if (candidate.collider == null || IsSelfCollider(candidate.collider))
+                    if (candidate.collider == null || IsSelfCollider(candidate.collider) || ShouldIgnoreRicochetCollider(candidate.collider))
                     {
                         continue;
                     }
@@ -129,6 +131,11 @@ namespace TankRoyale.Gameplay
         private void OnCollisionEnter(Collision collision)
         {
             if (collision == null || collision.collider == null)
+            {
+                return;
+            }
+
+            if (ShouldIgnoreRicochetCollider(collision.collider))
             {
                 return;
             }
@@ -228,7 +235,7 @@ namespace TankRoyale.Gameplay
 
             if (isRicochet)
             {
-                Ricochet(normal, point, hitCollider.transform);
+                Ricochet(hitCollider, normal, point, hitCollider.transform);
                 return;
             }
 
@@ -359,7 +366,7 @@ namespace TankRoyale.Gameplay
             }
         }
 
-        private void Ricochet(Vector3 collisionNormal, Vector3 point, Transform hitParent)
+        private void Ricochet(Collider hitCollider, Vector3 collisionNormal, Vector3 point, Transform hitParent)
         {
             if (_remainingBounces <= 0)
             {
@@ -381,7 +388,10 @@ namespace TankRoyale.Gameplay
             if (_rigidbody != null)
             {
                 _rigidbody.linearVelocity = reflectedVelocity;
-                _rigidbody.position += collisionNormal * 0.02f;
+                Vector3 escapeDir = reflectedVelocity.sqrMagnitude > 0.0001f ? reflectedVelocity.normalized : collisionNormal;
+                float separation = Mathf.Max(0.04f, _collisionRadius + 0.03f);
+                _rigidbody.position = point + (collisionNormal * separation) + (escapeDir * 0.02f);
+                _lastPosition = _rigidbody.position;
             }
             else
             {
@@ -397,6 +407,9 @@ namespace TankRoyale.Gameplay
                 Debug.DrawRay(_lastBouncePoint, _lastBounceNormal, Color.green, 1f);
                 Debug.DrawRay(_lastBouncePoint, _lastBounceOut, Color.magenta, 1f);
             }
+
+            _recentRicochetCollider = hitCollider;
+            _ignoreRicochetColliderUntil = Time.time + 0.05f;
 
             _remainingBounces--;
             if (_remainingBounces <= 0)
@@ -617,6 +630,14 @@ namespace TankRoyale.Gameplay
             if (collider == null) return true;
             Transform t = collider.transform;
             return t == transform || t.IsChildOf(transform) || IsShooterCollider(collider);
+        }
+
+        private bool ShouldIgnoreRicochetCollider(Collider collider)
+        {
+            return collider != null
+                   && _recentRicochetCollider != null
+                   && collider == _recentRicochetCollider
+                   && Time.time < _ignoreRicochetColliderUntil;
         }
 
         public void SetShooterRoot(Transform shooterRoot)

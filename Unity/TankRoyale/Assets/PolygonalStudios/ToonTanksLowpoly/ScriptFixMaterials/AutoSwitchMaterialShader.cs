@@ -122,7 +122,7 @@ namespace PolygonalStudios.MaterialTools
 
         static string GetRenderPipeline()
         {
-            var pipeline = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset;
+            var pipeline = UnityEngine.Rendering.GraphicsSettings.defaultRenderPipeline;
             if (pipeline == null) return "Built-in";
             var type = pipeline.GetType().ToString();
             if (type.Contains("HDRenderPipelineAsset")) return "HDRP";

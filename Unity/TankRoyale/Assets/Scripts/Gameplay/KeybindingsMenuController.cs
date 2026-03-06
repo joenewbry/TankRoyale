@@ -45,6 +45,11 @@ namespace TankRoyale.Gameplay
             GUILayout.Label("Core Movement");
             GUILayout.Label("W/S or Up/Down: Forward / Backward");
             GUILayout.Label("A/D or Left/Right: Turn Left / Right");
+            GUILayout.Label("Z (Z Drive): Jump to default mouse-drive mode");
+            GUILayout.Label("V (Control Mode): Toggle STANDARD / EASY steering");
+            GUILayout.Label("EASY mode: hull faces mouse aim; A/D still rotates hull + tread");
+            GUILayout.Label("Z_DRIVE camera: whole hull snaps toward mouse aim on the current ground plane");
+            GUILayout.Label("DRIVE_ASSIST camera: legacy mouse-drive view");
             GUILayout.Label("Space (Jump): Jump");
             GUILayout.Label("Mouse Left (Fire): Shoot bullet (when not building)");
             GUILayout.Label("Mouse Right (Fire): Shoot missile (when not building)");
@@ -52,14 +57,14 @@ namespace TankRoyale.Gameplay
 
             GUILayout.Space(8f);
             GUILayout.Label("Camera");
-            GUILayout.Label("Tab: Cycle camera modes");
-            GUILayout.Label("IN_TANK, STARE_DOWN_MUZZLE, TOP_OF_TANK, OVERHEAD_VIEW, WORLD_EXPLORER");
+            GUILayout.Label("Tab / Shift+Tab: Cycle camera modes forward / backward");
+            GUILayout.Label("IN_TANK, STARE_DOWN_MUZZLE, TOP_OF_TANK, OVERHEAD_VIEW, WORLD_EXPLORER, SIDE_INSPECTION, DRIVE_ASSIST, Z_DRIVE");
 
             GUILayout.Space(8f);
             GUILayout.Label("WORLD_EXPLORER Freecam");
-            GUILayout.Label("Hold Right Mouse: Look + unlock WASD for camera move");
-            GUILayout.Label("I/J/K/L: Move camera F/L/B/R");
-            GUILayout.Label("U/O: Move camera Up/Down");
+            GUILayout.Label("W/A/S/D or I/J/K/L: Move camera F/L/B/R");
+            GUILayout.Label("Q/E or U/O: Move camera Down/Up");
+            GUILayout.Label("Hold Right Mouse: Look");
             GUILayout.Label("Shift: Fast camera movement");
 
             GUILayout.Space(8f);

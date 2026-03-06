@@ -12,18 +12,6 @@ namespace TankRoyale.Gameplay
 
         private TargetCactus _cactus;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void EnsureManager()
-        {
-            if (Object.FindFirstObjectByType<TargetCactusManager>() != null)
-            {
-                return;
-            }
-
-            GameObject go = new GameObject("TargetCactusManager");
-            go.AddComponent<TargetCactusManager>();
-        }
-
         private void Start()
         {
             EnsureTargetCactus();

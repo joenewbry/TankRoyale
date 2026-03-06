@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -366,6 +367,226 @@ public static class TankRoyaleSetup
         Debug.Log($"[TankRoyaleSetup] ✅ Demo scene setup complete! Scene saved to {ArenaScenePath}");
     }
 
+    [MenuItem("TankRoyale/Setup Drive Test (Demo Scene 02 -> PlayTest1)")]
+    public static void SetupDriveTestScene()
+    {
+        if (EditorApplication.isPlaying)
+        {
+            _pendingDriveTestSetupAfterPlayMode = true;
+            Debug.LogWarning("[TankRoyaleSetup] Play mode is active. Stopping play mode and rerunning setup...");
+            EditorApplication.playModeStateChanged -= OnDriveTestSetupPlayModeChanged;
+            EditorApplication.playModeStateChanged += OnDriveTestSetupPlayModeChanged;
+            EditorApplication.isPlaying = false;
+            return;
+        }
+
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogWarning("[TankRoyaleSetup] Unity is changing play mode; rerun command from Edit mode.");
+            return;
+        }
+
+        SetupDriveTestSceneInternal();
+    }
+
+    private static bool _pendingDriveTestSetupAfterPlayMode;
+
+    private static void OnDriveTestSetupPlayModeChanged(PlayModeStateChange change)
+    {
+        if (change != PlayModeStateChange.EnteredEditMode) return;
+
+        if (!_pendingDriveTestSetupAfterPlayMode) return;
+        _pendingDriveTestSetupAfterPlayMode = false;
+        EditorApplication.playModeStateChanged -= OnDriveTestSetupPlayModeChanged;
+        EditorApplication.delayCall += SetupDriveTestSceneInternal;
+    }
+
+    private static void SetupDriveTestSceneInternal()
+    {
+        string playTestScenePath = GetNextPlayTestScenePath();
+
+        EnsureTagExists("Player");
+        EnsureTagExists("Enemy");
+        EnsureAssetFolder(Path.GetDirectoryName(playTestScenePath));
+
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(DemoSceneSourcePath) == null)
+        {
+            Debug.LogError($"[TankRoyaleSetup] Demo scene not found at: {DemoSceneSourcePath}");
+            return;
+        }
+
+        if (AssetDatabase.LoadAssetAtPath<SceneAsset>(playTestScenePath) != null)
+        {
+            AssetDatabase.DeleteAsset(playTestScenePath);
+        }
+
+        if (!AssetDatabase.CopyAsset(DemoSceneSourcePath, playTestScenePath))
+        {
+            Debug.LogError($"[TankRoyaleSetup] Failed to copy demo scene from '{DemoSceneSourcePath}' to '{playTestScenePath}'.");
+            return;
+        }
+
+        AssetDatabase.Refresh();
+        Scene scene = EditorSceneManager.OpenScene(playTestScenePath, OpenSceneMode.Single);
+
+        // Camera tuned for quick drive test over Demo Scene 02 bounds.
+        Camera mainCam = FindMainCameraInScene(scene);
+        GameObject cameraObject;
+        if (mainCam == null)
+        {
+            cameraObject = new GameObject("Main Camera");
+            SceneManager.MoveGameObjectToScene(cameraObject, scene);
+            cameraObject.tag = "MainCamera";
+            mainCam = cameraObject.AddComponent<Camera>();
+        }
+        else
+        {
+            cameraObject = mainCam.gameObject;
+            cameraObject.tag = "MainCamera";
+        }
+
+        mainCam.orthographic = false;
+        mainCam.fieldOfView = 60f;
+        mainCam.clearFlags = CameraClearFlags.SolidColor;
+        mainCam.backgroundColor = Color.black;
+        mainCam.nearClipPlane = 0.05f;
+        cameraObject.transform.position = new Vector3(-10f, 2.4f, -14f);
+        cameraObject.transform.rotation = Quaternion.identity;
+
+        if (cameraObject.GetComponent<AudioListener>() == null)
+            cameraObject.AddComponent<AudioListener>();
+        if (cameraObject.GetComponent<CameraController>() == null)
+            cameraObject.AddComponent<CameraController>();
+
+        CameraController camController = cameraObject.GetComponent<CameraController>();
+        SetPrivateField(camController, "switchKey", KeyCode.None);
+        SetPrivateField(camController, "allowModeToggle", false);
+        SetPrivateField(camController, "firstPersonOffset", new Vector3(0f, 1.25f, -0.75f));
+        SetPrivateField(camController, "firstPersonPitch", 8f);
+        SetPrivateField(camController, "_mode", 1); // FirstPersonMode
+        SetPrivateField(camController, "followSpeed", 15f);
+
+        // Strip non-driving systems so this mode is purely movement feel.
+        RemoveRootObjectsByName(scene,
+            "PowerupSpawner",
+            "AStarGrid",
+            "GameManager",
+            "PowerupManager",
+            "KillstreakManager",
+            "HUDCanvas",
+            "GameOverCanvas",
+            "AudioManager");
+
+        // Purge existing tanks/AI/player markers from copied demo scene.
+        DestroyTaggedObjects(scene, "Player");
+        DestroyTaggedObjects(scene, "Enemy");
+
+        var existingTankControllers = Object.FindObjectsByType<TankController>(FindObjectsSortMode.None);
+        for (int i = 0; i < existingTankControllers.Length; i++)
+        {
+            var tc = existingTankControllers[i];
+            if (tc != null && tc.gameObject.scene == scene)
+            {
+                Object.DestroyImmediate(tc.gameObject);
+            }
+        }
+
+        var existingAiControllers = Object.FindObjectsByType<AITankController>(FindObjectsSortMode.None);
+        for (int i = 0; i < existingAiControllers.Length; i++)
+        {
+            var ai = existingAiControllers[i];
+            if (ai != null && ai.gameObject.scene == scene)
+            {
+                Object.DestroyImmediate(ai.gameObject);
+            }
+        }
+
+        RemoveRootObjectsByName(scene, "Tank", "Vehicle", "Weapon", "Selection Pointer", "Collectible", "Icon");
+
+        // Create a clean, editable player root (prevents prefab immutability/component issues).
+        GameObject playerRoot = new GameObject("PlayerTank");
+        SceneManager.MoveGameObjectToScene(playerRoot, scene);
+        playerRoot.tag = "Player";
+        playerRoot.transform.position = new Vector3(-10f, 0.5f, -14f);
+        playerRoot.transform.rotation = Quaternion.identity;
+
+        SetPrivateField(camController, "playerTank", playerRoot.transform);
+
+        var rb = playerRoot.AddComponent<Rigidbody>();
+        rb.useGravity = false;
+        rb.constraints = RigidbodyConstraints.FreezeRotation;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        EnsurePlayerCollider(playerRoot);
+
+        TankController tankController = playerRoot.GetComponent<TankController>();
+        if (tankController == null)
+            tankController = playerRoot.AddComponent<TankController>();
+
+        // Make movement feel a bit more responsive for feel-iteration.
+        SetPrivateField(tankController, "acceleration", 35f);
+        SetPrivateField(tankController, "deceleration", 45f);
+        SetPrivateField(tankController, "moveSpeed", 6.5f);
+        SetPrivateField(tankController, "rotationSpeed", 560f);
+        SetPrivateField(tankController, "turretRotationSpeed", 900f);
+        SetPrivateField(tankController, "mouseTurretSensitivity", 2f);
+        SetPrivateField(tankController, "minTurretPitch", -15f);
+        SetPrivateField(tankController, "maxTurretPitch", 45f);
+        SetPrivateField(tankController, "invertMovement", true);
+
+        var weapon = playerRoot.GetComponent<WeaponController>() ?? playerRoot.AddComponent<WeaponController>();
+        SetPrivateField(weapon, "projectilePrefab", null);
+        SetPrivateField(weapon, "forceFallbackSphere", true);
+        SetPrivateField(weapon, "bulletSpeed", 25f);
+        SetPrivateField(weapon, "fireRate", 0.16f);
+        SetPrivateField(weapon, "bounceProjectilesByDefault", true);
+        SetPrivateField(weapon, "useBallisticArc", true);
+        SetPrivateField(weapon, "launchAngleDegrees", 14f);
+        SetPrivateField(weapon, "fallbackSphereScale", 0.2f);
+
+        // Optional visual shell from asset pack (scripts stripped to avoid conflicts).
+        GameObject playerPrefab = Load<GameObject>(PlayerTankPath);
+        if (playerPrefab != null)
+        {
+            GameObject visual = (GameObject)PrefabUtility.InstantiatePrefab(playerPrefab, scene);
+            if (visual != null)
+            {
+                visual.name = "Visual";
+                visual.transform.SetParent(playerRoot.transform, false);
+                visual.transform.localPosition = Vector3.zero;
+                visual.transform.localRotation = Quaternion.identity;
+                visual.transform.localScale = Vector3.one;
+                StripAllMonoBehaviours(visual);
+            }
+        }
+
+        // Keep map visuals + one player tank only.
+        var keepRoots = new HashSet<string>
+        {
+            "Main Camera",
+            "Directional Light",
+            "Ground",
+            "3D Tile",
+            "Cloud",
+            "Plant",
+            "Prop",
+            "Obstacle",
+            "PlayerTank"
+        };
+        KeepOnlyRootObjects(scene, keepRoots, playerRoot);
+        AddDriveTestMapColliders(scene);
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        if (!EditorSceneManager.SaveScene(scene, playTestScenePath))
+        {
+            Debug.LogError($"[TankRoyaleSetup] Failed to save drive test scene at {playTestScenePath}");
+            return;
+        }
+
+        Debug.Log($"[TankRoyaleSetup] ✅ Drive test scene ready at {playTestScenePath} (map + single player tank).");
+    }
+
     [MenuItem("TankRoyale/Verify Assets")]
     public static void VerifyAssets()
     {
@@ -437,6 +658,31 @@ public static class TankRoyaleSetup
         }
     }
 
+    private static string GetNextPlayTestScenePath()
+    {
+        EnsureAssetFolder("Assets/Scenes");
+
+        string[] guids = AssetDatabase.FindAssets("t:Scene PlayTest", new[] { "Assets/Scenes" });
+        int maxIndex = 0;
+
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string scenePath = AssetDatabase.GUIDToAssetPath(guids[i]);
+            string fileName = Path.GetFileNameWithoutExtension(scenePath);
+            Match match = Regex.Match(fileName, @"^PlayTest(\d+)$");
+            if (match.Success)
+            {
+                int index = int.Parse(match.Groups[1].Value);
+                if (index > maxIndex)
+                {
+                    maxIndex = index;
+                }
+            }
+        }
+
+        return $"Assets/Scenes/PlayTest{maxIndex + 1}.unity";
+    }
+
     private static Camera FindMainCameraInScene(Scene scene)
     {
         Camera[] cameras = Object.FindObjectsByType<Camera>(FindObjectsSortMode.None);
@@ -471,6 +717,196 @@ public static class TankRoyaleSetup
         GameObject go = new GameObject(name);
         SceneManager.MoveGameObjectToScene(go, scene);
         return go;
+    }
+
+    private static void StripAllMonoBehaviours(GameObject root)
+    {
+        if (root == null) return;
+
+        Transform[] allTransforms = root.GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < allTransforms.Length; i++)
+        {
+            GameObject go = allTransforms[i].gameObject;
+            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(go);
+
+            MonoBehaviour[] scripts = go.GetComponents<MonoBehaviour>();
+            for (int s = 0; s < scripts.Length; s++)
+            {
+                if (scripts[s] != null)
+                    Object.DestroyImmediate(scripts[s]);
+            }
+        }
+    }
+
+    private static void DestroyTaggedObjects(Scene scene, string tag)
+    {
+        var tagged = FindTaggedObjectsInScene(scene, tag);
+        for (int i = 0; i < tagged.Count; i++)
+        {
+            if (tagged[i] == null) continue;
+            GameObject root = tagged[i].transform.root.gameObject;
+            if (root != null)
+                Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void RemoveRootObjectsByName(Scene scene, params string[] names)
+    {
+        if (names == null || names.Length == 0) return;
+
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
+        {
+            GameObject root = roots[i];
+            if (root == null) continue;
+
+            for (int j = 0; j < names.Length; j++)
+            {
+                if (root.name == names[j])
+                {
+                    Object.DestroyImmediate(root);
+                    break;
+                }
+            }
+        }
+    }
+
+    private static void KeepOnlyRootObjects(Scene scene, HashSet<string> keepNames, GameObject alwaysKeep)
+    {
+        GameObject[] roots = scene.GetRootGameObjects();
+        for (int i = 0; i < roots.Length; i++)
+        {
+            GameObject root = roots[i];
+            if (root == null) continue;
+            if (alwaysKeep != null && root == alwaysKeep) continue;
+            if (keepNames != null && keepNames.Contains(root.name)) continue;
+
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void EnsurePlayerCollider(GameObject playerRoot)
+    {
+        if (playerRoot == null) return;
+
+        if (playerRoot.GetComponent<Collider>() != null) return;
+
+        var capsule = playerRoot.AddComponent<CapsuleCollider>();
+        capsule.radius = 0.55f;
+        capsule.height = 1.2f;
+        capsule.center = new Vector3(0f, 0.6f, 0f);
+    }
+
+    private static void AddDriveTestMapColliders(Scene scene)
+    {
+        var collidableRoots = new HashSet<string>
+        {
+            "Ground",
+            "3D Tile",
+            "Prop",
+            "Obstacle"
+        };
+
+        GameObject[] roots = scene.GetRootGameObjects();
+        bool createdAnyCollider = false;
+
+        for (int i = 0; i < roots.Length; i++)
+        {
+            GameObject root = roots[i];
+            if (root == null) continue;
+            if (!collidableRoots.Contains(root.name)) continue;
+
+            if (AddCollidersToHierarchy(root))
+            {
+                createdAnyCollider = true;
+            }
+        }
+
+        // Guard against missing/empty map sources (especially when imported prefabs don't
+        // serialize collider data in the copied scene YAML immediately).
+        if (!createdAnyCollider)
+        {
+            EnsureDriveTestFallbackFloor(scene);
+        }
+    }
+
+    private static bool AddCollidersToHierarchy(GameObject root)
+    {
+        bool created = false;
+
+        MeshFilter[] meshFilters = root.GetComponentsInChildren<MeshFilter>(true);
+        for (int j = 0; j < meshFilters.Length; j++)
+        {
+            MeshFilter mf = meshFilters[j];
+            if (mf == null || mf.sharedMesh == null) continue;
+
+            GameObject go = mf.gameObject;
+            if (go.GetComponent<Collider>() != null) continue;
+
+            MeshCollider mc = go.AddComponent<MeshCollider>();
+            mc.sharedMesh = mf.sharedMesh;
+            created = true;
+        }
+
+        // Fallback for renderer-only objects.
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (int j = 0; j < renderers.Length; j++)
+        {
+            GameObject go = renderers[j].gameObject;
+            if (go.GetComponent<Collider>() != null) continue;
+
+            BoxCollider bc = go.AddComponent<BoxCollider>();
+            bc.isTrigger = false;
+            created = true;
+        }
+
+        return created;
+    }
+
+    private static void EnsureDriveTestFallbackFloor(Scene scene)
+    {
+        GameObject floor = GetOrCreateSceneObject(scene, "DriveTestFloor");
+
+        var rootNames = new HashSet<string> { "Ground", "3D Tile", "Prop", "Obstacle" };
+        Renderer[] allRenderers = Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+
+        Bounds combined = new Bounds(Vector3.zero, Vector3.zero);
+        bool initialized = false;
+
+        for (int i = 0; i < allRenderers.Length; i++)
+        {
+            Renderer r = allRenderers[i];
+            if (r == null || !r.enabled) continue;
+            if (r is ParticleSystemRenderer) continue;
+
+            var root = r.transform.root;
+            if (root == null || !rootNames.Contains(root.name)) continue;
+
+            if (!initialized)
+            {
+                combined = r.bounds;
+                initialized = true;
+            }
+            else
+            {
+                combined.Encapsulate(r.bounds);
+            }
+        }
+
+        if (!initialized)
+        {
+            combined = new Bounds(Vector3.zero, new Vector3(120f, 1f, 120f));
+        }
+
+        BoxCollider bcFloor = floor.GetComponent<BoxCollider>();
+        if (bcFloor == null)
+        {
+            bcFloor = floor.AddComponent<BoxCollider>();
+        }
+
+        bcFloor.isTrigger = false;
+        bcFloor.size = new Vector3(Mathf.Max(20f, combined.size.x + 6f), 2f, Mathf.Max(20f, combined.size.z + 6f));
+        floor.transform.position = new Vector3(combined.center.x, combined.center.y - (combined.extents.y + 1f), combined.center.z);
     }
 
     private static List<GameObject> FindTaggedObjectsInScene(Scene scene, string tag)

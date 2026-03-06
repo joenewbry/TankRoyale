@@ -29,6 +29,8 @@ namespace TankRoyale.Gameplay
         [SerializeField] private bool forceStraightShots = true;
         [SerializeField] [Range(0f, 45f)] private float launchAngleDegrees = 14f;
         [SerializeField] private float fallbackSphereScale = 0.2f;
+        [SerializeField] private float shellCollisionRadius = 0.14f;
+        [SerializeField] private float missileCollisionRadius = 0.18f;
         [SerializeField] private bool useFallbackSphereWhenPrefabMissing = true;
         [SerializeField] private bool forceFallbackSphere = false;
 
@@ -47,7 +49,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float missileFireRate = 0.5f;
         [SerializeField] private float missileSpeed = 28f;
         [SerializeField] private int missileCapacity = 8;
+        [SerializeField] private bool unlimitedMissiles = true;
         [SerializeField] private bool missilesExplodeOnHit = true;
+        [SerializeField] private bool missilesRicochetByDefault = true;
         [SerializeField] private bool disableBulletImpactFx = true;
         [SerializeField] private bool disableMissileImpactFx = true;
         [SerializeField] private Vector3 shellModelEulerOffset = new Vector3(-90f, 0f, 0f);
@@ -63,6 +67,8 @@ namespace TankRoyale.Gameplay
         public float BulletSpeed => bulletSpeed;
         public bool UseBallisticArc => useBallisticArc && !forceStraightShots;
         public float LaunchAngleDegrees => launchAngleDegrees;
+        public bool HasUnlimitedBullets => true;
+        public bool HasUnlimitedMissiles => unlimitedMissiles;
         public int MissilesRemaining => _missilesRemaining;
         public int MissileCapacity => Mathf.Max(0, missileCapacity);
 
@@ -138,12 +144,15 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            if (_missilesRemaining <= 0)
+            if (!unlimitedMissiles && _missilesRemaining <= 0)
             {
                 return;
             }
 
-            _missilesRemaining = Mathf.Max(0, _missilesRemaining - 1);
+            if (!unlimitedMissiles)
+            {
+                _missilesRemaining = Mathf.Max(0, _missilesRemaining - 1);
+            }
             SpawnMissile(_tankController.PlayerId);
             _nextMissileFireTime = Time.time + Mathf.Max(0.05f, missileFireRate);
         }
@@ -177,13 +186,9 @@ namespace TankRoyale.Gameplay
             projectileRigidbody.linearVelocity = GetLaunchVelocity(firePoint);
             AlignProjectileToVelocity(projectileObject.transform, projectileRigidbody.linearVelocity, shellModelEulerOffset);
 
-            Collider collider = projectileObject.GetComponent<Collider>();
-            if (collider == null)
-            {
-                SphereCollider generated = projectileObject.AddComponent<SphereCollider>();
-                generated.radius = Mathf.Max(0.05f, fallbackSphereScale * 0.5f);
-                collider = generated;
-            }
+            SphereCollider collider = ConfigureSphereCollisionProfile(
+                projectileObject,
+                Mathf.Max(0.05f, shellCollisionRadius, fallbackSphereScale * 0.5f));
 
             if (collider != null)
             {
@@ -244,13 +249,9 @@ namespace TankRoyale.Gameplay
             rb.linearVelocity = GetTargetingLaunchDirection(firePoint != null ? firePoint : transform) * missileSpeed;
             AlignProjectileToVelocity(missileObject.transform, rb.linearVelocity, missileModelEulerOffset);
 
-            Collider collider = missileObject.GetComponent<Collider>();
-            if (collider == null)
-            {
-                SphereCollider generated = missileObject.AddComponent<SphereCollider>();
-                generated.radius = 0.14f;
-                collider = generated;
-            }
+            SphereCollider collider = ConfigureSphereCollisionProfile(
+                missileObject,
+                Mathf.Max(0.08f, missileCollisionRadius));
 
             if (collider != null)
             {
@@ -266,9 +267,9 @@ namespace TankRoyale.Gameplay
 
             projectile.shooterPlayerId = playerId;
             projectile.SetShooterRoot(_tankController != null ? _tankController.transform : null);
-            projectile.isRicochet = false;
+            projectile.isRicochet = missilesRicochetByDefault;
             projectile.isBlockBreaker = false;
-            projectile.isExplosive = missilesExplodeOnHit;
+            projectile.isExplosive = missilesExplodeOnHit && !projectile.isRicochet;
             projectile.UseAreaBlockDestruction = true;
             projectile.SetPaintColor(new Color(1f, 0.5f, 0.12f, 1f));
             if (disableMissileImpactFx)
@@ -306,6 +307,39 @@ namespace TankRoyale.Gameplay
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
             return projectile;
+        }
+
+        private SphereCollider ConfigureSphereCollisionProfile(GameObject projectileObject, float radius)
+        {
+            if (projectileObject == null)
+            {
+                return null;
+            }
+
+            Collider[] colliders = projectileObject.GetComponentsInChildren<Collider>(true);
+            SphereCollider sphere = projectileObject.GetComponent<SphereCollider>();
+            if (sphere == null)
+            {
+                sphere = projectileObject.AddComponent<SphereCollider>();
+            }
+
+            sphere.center = Vector3.zero;
+            sphere.radius = Mathf.Max(0.01f, radius);
+            sphere.enabled = true;
+            sphere.isTrigger = false;
+
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                Collider collider = colliders[i];
+                if (collider == null || collider == sphere)
+                {
+                    continue;
+                }
+
+                collider.enabled = false;
+            }
+
+            return sphere;
         }
 
         private PhysicsMaterial GetBouncyProjectileMaterial()

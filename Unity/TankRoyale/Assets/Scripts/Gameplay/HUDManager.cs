@@ -19,7 +19,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Color healthMid = new Color(0.95f, 0.8f, 0.05f);
         [SerializeField] private Color healthLow = new Color(0.9f, 0.15f, 0.1f);
         [SerializeField] private Color hudBackground = new Color(0f, 0f, 0f, 0.55f);
-        [SerializeField] private bool use3DFontAmmoCounter = true;
+        [SerializeField] private Color ammoBulletColor = new Color(1f, 0.93f, 0.7f, 1f);
+        [SerializeField] private Color ammoMissileColor = new Color(1f, 0.62f, 0.24f, 1f);
+        [SerializeField] private bool use3DFontAmmoCounter = false;
         [SerializeField] private Vector3 ammo3DLocalOffset = new Vector3(0f, -0.35f, 1.8f);
         [SerializeField] private float ammo3DScale = 0.06f;
         [SerializeField] private float ammo3DCharSpacing = 0.62f;
@@ -33,7 +35,12 @@ namespace TankRoyale.Gameplay
         private Text _powerupText;
         private Text _streakText;
         private Text _upgradePopupText;
-        private Text _ammoText;
+        private Text _bulletAmmoIconText;
+        private Text _bulletAmmoLabelText;
+        private Text _bulletAmmoCountText;
+        private Text _missileAmmoIconText;
+        private Text _missileAmmoLabelText;
+        private Text _missileAmmoCountText;
         private float _popupHideAt;
         private WeaponController _weaponController;
 
@@ -187,18 +194,56 @@ namespace TankRoyale.Gameplay
 
         private void BuildAmmoDisplay(GameObject parent)
         {
-            var container = MakeRect("AmmoDisplay", parent, new Vector2(0.35f, 0f), new Vector2(0.65f, 0f),
-                new Vector2(0f, 20f), new Vector2(0f, 70f));
+            var container = MakeRect("AmmoDisplay", parent, new Vector2(0f, 0f), new Vector2(0f, 0f),
+                new Vector2(20f, 80f), new Vector2(360f, 180f));
             var bg = container.AddComponent<Image>();
             bg.color = hudBackground;
 
-            _ammoText = container.gameObject.AddComponent<Text>();
-            _ammoText.font = UIUtility.GetBuiltinFont();
-            _ammoText.fontSize = 22;
-            _ammoText.fontStyle = FontStyle.Bold;
-            _ammoText.alignment = TextAnchor.MiddleCenter;
-            _ammoText.color = Color.white;
-            _ammoText.text = "BULLET[LMB]  MISSILE[RMB]";
+            RectTransform bulletRow = MakeRect("BulletAmmoRow", container.gameObject, new Vector2(0f, 0.5f), new Vector2(1f, 1f),
+                new Vector2(14f, -6f), new Vector2(-14f, -8f));
+            RectTransform missileRow = MakeRect("MissileAmmoRow", container.gameObject, new Vector2(0f, 0f), new Vector2(1f, 0.5f),
+                new Vector2(14f, 8f), new Vector2(-14f, 6f));
+
+            BuildAmmoRow(bulletRow, ammoBulletColor, "▸", "SHELL", out _bulletAmmoIconText, out _bulletAmmoLabelText, out _bulletAmmoCountText);
+            BuildAmmoRow(missileRow, ammoMissileColor, "◂", "MISSILE", out _missileAmmoIconText, out _missileAmmoLabelText, out _missileAmmoCountText);
+        }
+
+        private void BuildAmmoRow(
+            RectTransform row,
+            Color accent,
+            string iconGlyph,
+            string label,
+            out Text iconText,
+            out Text labelText,
+            out Text countText)
+        {
+            iconText = MakeRect("Icon", row.gameObject, new Vector2(0f, 0f), new Vector2(0f, 1f),
+                new Vector2(0f, 0f), new Vector2(34f, 0f)).AddComponent<Text>();
+            iconText.font = UIUtility.GetBuiltinFont();
+            iconText.fontSize = 26;
+            iconText.fontStyle = FontStyle.Bold;
+            iconText.alignment = TextAnchor.MiddleCenter;
+            iconText.color = accent;
+            iconText.text = iconGlyph;
+            iconText.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -90f);
+
+            labelText = MakeRect("Label", row.gameObject, new Vector2(0f, 0f), new Vector2(1f, 1f),
+                new Vector2(40f, 0f), new Vector2(-116f, 0f)).AddComponent<Text>();
+            labelText.font = UIUtility.GetBuiltinFont();
+            labelText.fontSize = 20;
+            labelText.fontStyle = FontStyle.Bold;
+            labelText.alignment = TextAnchor.MiddleLeft;
+            labelText.color = accent;
+            labelText.text = label;
+
+            countText = MakeRect("Count", row.gameObject, new Vector2(1f, 0f), new Vector2(1f, 1f),
+                new Vector2(-112f, 0f), new Vector2(0f, 0f)).AddComponent<Text>();
+            countText.font = UIUtility.GetBuiltinFont();
+            countText.fontSize = 24;
+            countText.fontStyle = FontStyle.Bold;
+            countText.alignment = TextAnchor.MiddleRight;
+            countText.color = Color.white;
+            countText.text = "INF";
         }
 
         private void BuildStreakCounter(GameObject parent)
@@ -280,7 +325,7 @@ namespace TankRoyale.Gameplay
 
         private void UpdateAmmoDisplay()
         {
-            if (_ammoText == null)
+            if (_bulletAmmoCountText == null || _missileAmmoCountText == null)
             {
                 return;
             }
@@ -292,11 +337,15 @@ namespace TankRoyale.Gameplay
 
             if (_weaponController == null)
             {
-                _ammoText.text = "BULLET[LMB]  MISSILE[RMB]";
+                _bulletAmmoCountText.text = "INF";
+                _missileAmmoCountText.text = "INF";
                 return;
             }
 
-            _ammoText.text = $"BULLET[LMB] INF   MISSILE[RMB] {_weaponController.MissilesRemaining}/{_weaponController.MissileCapacity}";
+            _bulletAmmoCountText.text = _weaponController.HasUnlimitedBullets ? "INF" : "--";
+            _missileAmmoCountText.text = _weaponController.HasUnlimitedMissiles
+                ? "INF"
+                : $"{_weaponController.MissilesRemaining}/{_weaponController.MissileCapacity}";
         }
 
         private void BuildAmmo3DCounter()
@@ -338,8 +387,10 @@ namespace TankRoyale.Gameplay
             }
 
             string text = _weaponController == null
-                ? "BULLET INF MISSILE 0 OF 0"
-                : $"BULLET INF MISSILE {_weaponController.MissilesRemaining} OF {_weaponController.MissileCapacity}";
+                ? "SHELL INF MISSILE INF"
+                : _weaponController.HasUnlimitedMissiles
+                    ? "SHELL INF MISSILE INF"
+                    : $"SHELL INF MISSILE {_weaponController.MissilesRemaining} OF {_weaponController.MissileCapacity}";
 
             if (text == _lastAmmo3DText)
             {

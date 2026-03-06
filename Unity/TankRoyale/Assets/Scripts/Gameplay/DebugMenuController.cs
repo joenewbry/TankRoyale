@@ -5,6 +5,9 @@ namespace TankRoyale.Gameplay
     [DisallowMultipleComponent]
     public class DebugMenuController : MonoBehaviour
     {
+        private static readonly Color PrimitiveColliderColor = new Color(0.25f, 1f, 0.45f, 0.95f);
+        private static readonly Color FallbackBoundsColor = new Color(1f, 0.8f, 0.2f, 0.9f);
+
         [SerializeField] private KeyCode toggleMenuKey = KeyCode.Alpha1;
         [SerializeField] private KeyCode quickHitboxKey = KeyCode.Alpha2;
         [SerializeField] private KeyCode quickRayKey = KeyCode.Alpha3;
@@ -12,6 +15,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private KeyCode quickWireframeKey = KeyCode.Alpha5;
         [SerializeField] private KeyCode quickShadowKey = KeyCode.Alpha6;
         [SerializeField] private Rect menuRect = new Rect(18f, 18f, 360f, 340f);
+        private static Material _lineMaterial;
         private ShadowQuality _defaultShadows = ShadowQuality.All;
         private bool _shadowQualityCached;
 
@@ -70,6 +74,15 @@ namespace TankRoyale.Gameplay
 
             GL.wireframe = DebugVisualSettings.Wireframe;
             ApplyShadowDebugState();
+        }
+
+        private void OnDestroy()
+        {
+            if (_lineMaterial != null)
+            {
+                Destroy(_lineMaterial);
+                _lineMaterial = null;
+            }
         }
 
         private void OnDisable()
@@ -136,6 +149,50 @@ namespace TankRoyale.Gameplay
             }
         }
 
+        private void OnRenderObject()
+        {
+            if (!DebugVisualSettings.ShowColliderBounds)
+            {
+                return;
+            }
+
+            Camera currentCamera = Camera.current;
+            if (currentCamera == null || currentCamera.cameraType != CameraType.Game)
+            {
+                return;
+            }
+
+            EnsureLineMaterial();
+            if (_lineMaterial == null)
+            {
+                return;
+            }
+
+            Collider[] colliders = FindObjectsByType<Collider>(FindObjectsSortMode.None);
+            if (colliders == null || colliders.Length == 0)
+            {
+                return;
+            }
+
+            _lineMaterial.SetPass(0);
+            GL.PushMatrix();
+            GL.Begin(GL.LINES);
+
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                Collider collider = colliders[i];
+                if (collider == null || !collider.enabled || !collider.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                DrawColliderLines(collider);
+            }
+
+            GL.End();
+            GL.PopMatrix();
+        }
+
         private static void DrawColliderGizmo(Collider collider)
         {
             if (collider is BoxCollider box)
@@ -160,6 +217,133 @@ namespace TankRoyale.Gameplay
 
             // Fallback for capsule/mesh/terrain colliders.
             Gizmos.DrawWireCube(collider.bounds.center, collider.bounds.size);
+        }
+
+        private static void EnsureLineMaterial()
+        {
+            if (_lineMaterial != null)
+            {
+                return;
+            }
+
+            Shader shader = Shader.Find("Hidden/Internal-Colored");
+            if (shader == null)
+            {
+                return;
+            }
+
+            _lineMaterial = new Material(shader)
+            {
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            _lineMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            _lineMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            _lineMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            _lineMaterial.SetInt("_ZWrite", 0);
+            _lineMaterial.SetInt("_ZTest", (int)UnityEngine.Rendering.CompareFunction.Always);
+        }
+
+        private static void DrawColliderLines(Collider collider)
+        {
+            if (collider is BoxCollider box)
+            {
+                DrawWorldBox(box.transform, box.center, box.size, PrimitiveColliderColor);
+                return;
+            }
+
+            if (collider is SphereCollider sphere)
+            {
+                Vector3 worldCenter = sphere.transform.TransformPoint(sphere.center);
+                float scale = Mathf.Max(
+                    Mathf.Abs(sphere.transform.lossyScale.x),
+                    Mathf.Abs(sphere.transform.lossyScale.y),
+                    Mathf.Abs(sphere.transform.lossyScale.z));
+                DrawWireSphere(worldCenter, sphere.radius * scale, PrimitiveColliderColor);
+                return;
+            }
+
+            DrawWireBounds(collider.bounds, FallbackBoundsColor);
+        }
+
+        private static void DrawWorldBox(Transform source, Vector3 localCenter, Vector3 localSize, Color color)
+        {
+            Vector3 half = localSize * 0.5f;
+            Vector3 c000 = source.TransformPoint(localCenter + new Vector3(-half.x, -half.y, -half.z));
+            Vector3 c001 = source.TransformPoint(localCenter + new Vector3(-half.x, -half.y, half.z));
+            Vector3 c010 = source.TransformPoint(localCenter + new Vector3(-half.x, half.y, -half.z));
+            Vector3 c011 = source.TransformPoint(localCenter + new Vector3(-half.x, half.y, half.z));
+            Vector3 c100 = source.TransformPoint(localCenter + new Vector3(half.x, -half.y, -half.z));
+            Vector3 c101 = source.TransformPoint(localCenter + new Vector3(half.x, -half.y, half.z));
+            Vector3 c110 = source.TransformPoint(localCenter + new Vector3(half.x, half.y, -half.z));
+            Vector3 c111 = source.TransformPoint(localCenter + new Vector3(half.x, half.y, half.z));
+
+            DrawLine(c000, c001, color);
+            DrawLine(c000, c010, color);
+            DrawLine(c000, c100, color);
+            DrawLine(c001, c011, color);
+            DrawLine(c001, c101, color);
+            DrawLine(c010, c011, color);
+            DrawLine(c010, c110, color);
+            DrawLine(c011, c111, color);
+            DrawLine(c100, c101, color);
+            DrawLine(c100, c110, color);
+            DrawLine(c101, c111, color);
+            DrawLine(c110, c111, color);
+        }
+
+        private static void DrawWireBounds(Bounds bounds, Color color)
+        {
+            Vector3 center = bounds.center;
+            Vector3 ext = bounds.extents;
+
+            Vector3 c000 = center + new Vector3(-ext.x, -ext.y, -ext.z);
+            Vector3 c001 = center + new Vector3(-ext.x, -ext.y, ext.z);
+            Vector3 c010 = center + new Vector3(-ext.x, ext.y, -ext.z);
+            Vector3 c011 = center + new Vector3(-ext.x, ext.y, ext.z);
+            Vector3 c100 = center + new Vector3(ext.x, -ext.y, -ext.z);
+            Vector3 c101 = center + new Vector3(ext.x, -ext.y, ext.z);
+            Vector3 c110 = center + new Vector3(ext.x, ext.y, -ext.z);
+            Vector3 c111 = center + new Vector3(ext.x, ext.y, ext.z);
+
+            DrawLine(c000, c001, color);
+            DrawLine(c000, c010, color);
+            DrawLine(c000, c100, color);
+            DrawLine(c001, c011, color);
+            DrawLine(c001, c101, color);
+            DrawLine(c010, c011, color);
+            DrawLine(c010, c110, color);
+            DrawLine(c011, c111, color);
+            DrawLine(c100, c101, color);
+            DrawLine(c100, c110, color);
+            DrawLine(c101, c111, color);
+            DrawLine(c110, c111, color);
+        }
+
+        private static void DrawWireSphere(Vector3 center, float radius, Color color)
+        {
+            const int segmentCount = 24;
+            DrawCircle(center, radius, Vector3.right, Vector3.up, color, segmentCount);
+            DrawCircle(center, radius, Vector3.right, Vector3.forward, color, segmentCount);
+            DrawCircle(center, radius, Vector3.up, Vector3.forward, color, segmentCount);
+        }
+
+        private static void DrawCircle(Vector3 center, float radius, Vector3 axisA, Vector3 axisB, Color color, int segmentCount)
+        {
+            Vector3 previous = center + (axisA * radius);
+            for (int i = 1; i <= segmentCount; i++)
+            {
+                float angle = (i / (float)segmentCount) * Mathf.PI * 2f;
+                Vector3 next = center + ((axisA * Mathf.Cos(angle)) + (axisB * Mathf.Sin(angle))) * radius;
+                DrawLine(previous, next, color);
+                previous = next;
+            }
+        }
+
+        private static void DrawLine(Vector3 start, Vector3 end, Color color)
+        {
+            GL.Color(color);
+            GL.Vertex(start);
+            GL.Vertex(end);
         }
 
         private void ApplyShadowDebugState()

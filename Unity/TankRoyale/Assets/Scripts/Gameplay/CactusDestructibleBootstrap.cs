@@ -8,18 +8,6 @@ namespace TankRoyale.Gameplay
         [SerializeField] private bool enableAutoAttach = true;
         [SerializeField] private bool includeInactive = true;
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        private static void EnsureBootstrap()
-        {
-            if (Object.FindFirstObjectByType<CactusDestructibleBootstrap>() != null)
-            {
-                return;
-            }
-
-            GameObject go = new GameObject("CactusDestructibleBootstrap");
-            go.AddComponent<CactusDestructibleBootstrap>();
-        }
-
         private void Start()
         {
             AttachToCactusProps();

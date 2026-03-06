@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using TankRoyale.Audio;
 
 namespace TankRoyale.Gameplay
@@ -10,6 +11,18 @@ namespace TankRoyale.Gameplay
     [DisallowMultipleComponent]
     public class TankController : MonoBehaviour
     {
+        private enum ControlMode
+        {
+            Standard = 0,
+            Easy = 1
+        }
+
+        private enum VerticalMotionMode
+        {
+            SceneDefault = 0,
+            CustomSnap = 1,
+            RigidbodyGravity = 2
+        }
 
         [Header("Identity")]
         [SerializeField] private string playerId;
@@ -19,6 +32,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Transform turret;
         [SerializeField] private Transform firePoint;
         [SerializeField] private Camera aimCamera;
+
+        [Header("Visual Alignment")]
+        [SerializeField] private Vector3 visualRootLocalOffset = Vector3.zero;
 
         [Header("Movement Feel")]
         [SerializeField] private float moveSpeed = 8.5f;
@@ -43,9 +59,22 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float stepLiftSpeed = 8f;
         [SerializeField] private float maxStepRisePerSecond = 2.6f;
         [SerializeField] private float stepGroundProbePadding = 0.2f;
+        [SerializeField] private float treadClimbPullAcceleration = 18f;
+        [SerializeField] private float treadClimbLiftVelocity = 4.6f;
+        [SerializeField] [Range(0f, 1f)] private float treadClimbPitchStrength = 0.45f;
+        [SerializeField] private float treadClimbBiasDecay = 5.5f;
         [SerializeField] private float jumpImpulse = 8.4f;
         [SerializeField] private float jumpGravity = 12.5f;
+        [SerializeField] private float fallingGravityMultiplier = 1.85f;
+        [SerializeField] private float rigidbodyRiseGravityMultiplier = 2.4f;
+        [SerializeField] private float rigidbodyFallGravityMultiplier = 4.8f;
+        [SerializeField] private float rigidbodyJumpCutGravityMultiplier = 6.2f;
+        [SerializeField] private float rigidbodyGroundedStickVelocity = -2f;
+        [SerializeField] private float rigidbodyMaxFallSpeed = 32f;
         [SerializeField] private float jumpCooldown = 0.2f;
+        [SerializeField] private float jumpInputBuffer = 0.12f;
+        [SerializeField] private float jumpCompressionDuration = 0.06f;
+        [SerializeField] private float jumpCompressionDepth = 0.08f;
         [SerializeField] private float landingBounceFactor = 0.22f;
         [SerializeField] private float maxLandingBounce = 1.8f;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
@@ -63,6 +92,12 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float edgeProbeHeight = 0.9f;
         [SerializeField] private float edgeProbeDownDistance = 1.8f;
         [SerializeField] [Range(0f, 1f)] private float edgeTipStrength = 0.42f;
+        [SerializeField] private VerticalMotionMode verticalMotionMode = VerticalMotionMode.SceneDefault;
+
+        [Header("Control Mode")]
+        [SerializeField] private ControlMode controlMode = ControlMode.Standard;
+        [SerializeField] private bool allowControlModeToggle = true;
+        [SerializeField] private KeyCode controlModeToggleKey = KeyCode.V;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 420f;
@@ -107,6 +142,7 @@ namespace TankRoyale.Gameplay
 
         // Requires Rigidbody with: Freeze Rotation only (top-down tank feel)
         private Rigidbody _rigidbody;
+        private CapsuleCollider _capsuleCollider;
         private Camera _cachedCamera;
         private Vector2 _moveInput;
         private WeaponController _weaponController;
@@ -132,17 +168,35 @@ namespace TankRoyale.Gameplay
         private float _nextMouseLogTime;
         private float _jumpVelocity;
         private float _jumpOffset;
+        private float _jumpCompressionTimer;
+        private float _jumpCompressionOffset;
         private bool _jumpRequested;
+        private float _jumpRequestExpiresAt = -999f;
         private float _lastJumpTime = -999f;
         private bool _wasGrounded = true;
+        private VerticalMotionMode _resolvedVerticalMotionMode;
+        private Transform _visualRoot;
+        private float _treadClimbPitchBias;
 
         public Transform FirePoint => firePoint;
+        public bool IsEasyMode => controlMode == ControlMode.Easy;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
         public int CurrentHealth => currentHealth;
         public int MaxHealth => maxHealth;
         public float CurrentSpeed => _planarVelocity.magnitude;
         public float CurrentSlopeAngle => Vector3.Angle(_groundNormal, Vector3.up);
         public Vector3 CurrentGroundNormal => _groundNormal;
+        public float CurrentGroundHeight => _groundHeight;
+        public float CurrentSupportSurfaceY => _groundHeight - groundSnapHeight;
+        public float CurrentVerticalVelocity => _rigidbody != null ? _rigidbody.linearVelocity.y : 0f;
+        public float CurrentHeightAboveGround => (_rigidbody != null ? _rigidbody.position.y : transform.position.y) - _groundHeight;
+        public float CurrentCapsuleBottomY => GetCapsuleBottomY();
+        public float CurrentRendererBottomY => GetTankRendererBottomY();
+        public float CurrentVisualRootLocalY => _visualRoot != null ? _visualRoot.localPosition.y : 0f;
+        public string VerticalMotionModeName => _resolvedVerticalMotionMode.ToString();
+        public Transform TankBodyTransform => tankBody != null ? tankBody : transform;
+        public Transform TurretTransform => turret;
+        public Transform VisualRootTransform => _visualRoot;
         public Vector3 CurrentBodyForward
         {
             get
@@ -166,6 +220,7 @@ namespace TankRoyale.Gameplay
         }
         public float ProjectileImpactStrength => projectileImpactStrength;
         public float CurrentTurnInput => _moveInput.x;
+        public bool UsesRigidbodyGravity => _resolvedVerticalMotionMode == VerticalMotionMode.RigidbodyGravity;
         public Vector3 AimForward
         {
             get
@@ -194,12 +249,14 @@ namespace TankRoyale.Gameplay
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
+            _capsuleCollider = GetComponent<CapsuleCollider>();
             if (_rigidbody == null)
             {
                 _rigidbody = gameObject.AddComponent<Rigidbody>();
             }
 
-            _rigidbody.useGravity = false;
+            _resolvedVerticalMotionMode = ResolveVerticalMotionMode();
+            _rigidbody.useGravity = UsesRigidbodyGravity;
             _rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
             _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
@@ -222,6 +279,8 @@ namespace TankRoyale.Gameplay
                 invertMovement = false;
             }
 
+            _visualRoot = ResolveVisualRoot();
+            ApplyVisualRootLocalOffset();
             tankBody = ResolveBodyTransform();
             turret = ResolveTurretTransform();
             firePoint = ResolveFirePointTransform();
@@ -233,6 +292,7 @@ namespace TankRoyale.Gameplay
 
         private void Update()
         {
+            HandleControlModeToggle();
             ReadMovementInput();
             UpdateTreadVisuals();
             UpdateTrajectoryLine();
@@ -248,6 +308,13 @@ namespace TankRoyale.Gameplay
 
         private void FixedUpdate()
         {
+            if (IsMouseDriveModeActive())
+            {
+                RotateBodyFromTurnInput();
+                MoveTank();
+                return;
+            }
+
             MoveTank();
             RotateBodyFromTurnInput();
         }
@@ -310,6 +377,7 @@ namespace TankRoyale.Gameplay
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 _jumpRequested = true;
+                _jumpRequestExpiresAt = Time.time + Mathf.Max(0.01f, jumpInputBuffer);
             }
         }
 
@@ -386,8 +454,29 @@ namespace TankRoyale.Gameplay
 
             Vector3 projectedPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
             Vector3 groundNormal;
-            float groundY = SampleGroundHeight(projectedPosition, out groundNormal);
+            float groundY = SampleGroundHeight(projectedPosition, out groundNormal, out bool hasGroundBelow);
             ApplyRampGrip(basis, throttle, hasThrottleInput, ref groundY, ref groundNormal);
+            _treadClimbPitchBias = Mathf.MoveTowards(_treadClimbPitchBias, 0f, Mathf.Max(0.01f, treadClimbBiasDecay) * Time.fixedDeltaTime);
+
+            bool hasTreadClimbAssist = TryGetTreadClimbAssist(
+                basis,
+                throttle,
+                hasThrottleInput,
+                out float treadClimbTargetY,
+                out Vector3 treadClimbNormal,
+                out float treadClimbFactor,
+                out Vector3 treadClimbPullDirection);
+            if (hasTreadClimbAssist)
+            {
+                if (treadClimbPullDirection.sqrMagnitude > 0.0001f)
+                {
+                    _planarVelocity += treadClimbPullDirection * (treadClimbPullAcceleration * treadClimbFactor * Time.fixedDeltaTime);
+                }
+
+                groundNormal = Vector3.Slerp(groundNormal, treadClimbNormal, Mathf.Lerp(0.35f, 0.8f, treadClimbFactor));
+                _treadClimbPitchBias = Mathf.Max(_treadClimbPitchBias, treadClimbFactor);
+            }
+
             Vector3 sampledNormal = groundNormal.sqrMagnitude > 0.0001f ? groundNormal.normalized : Vector3.up;
             if (_groundNormal.sqrMagnitude <= 0.0001f)
             {
@@ -464,57 +553,177 @@ namespace TankRoyale.Gameplay
                 }
             }
 
-            Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
-            bool canStepAssist = _jumpOffset <= 0.001f;
-            if (canStepAssist && TryGetStepClimbTargetY(basis, throttle, hasThrottleInput, out float stepY))
+            if (UsesRigidbodyGravity)
             {
-                float climbDelta = Mathf.Max(0f, stepY - _rigidbody.position.y);
+                ApplyRigidbodyGravityMovement(groundY, hasGroundBelow, hasTreadClimbAssist, treadClimbTargetY, treadClimbFactor);
+                return;
+            }
+
+            Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
+            bool jumpCompressing = _jumpCompressionTimer > 0f;
+            bool canStepAssist = _jumpOffset <= 0.001f && !jumpCompressing;
+            if (canStepAssist && hasTreadClimbAssist)
+            {
+                float climbDelta = Mathf.Max(0f, treadClimbTargetY - _rigidbody.position.y);
                 float maxRise = Mathf.Max(0.01f, maxStepRisePerSecond) * Time.fixedDeltaTime;
                 float lift = Mathf.Min(climbDelta, maxRise);
                 float climbedY = Mathf.MoveTowards(_rigidbody.position.y, _rigidbody.position.y + lift, stepLiftSpeed * Time.fixedDeltaTime);
                 groundY = Mathf.Max(groundY, climbedY);
             }
 
-            bool grounded = _jumpOffset <= 0.001f && Mathf.Abs(_rigidbody.position.y - groundY) <= 0.2f;
-            if (_jumpRequested && grounded && (Time.time - _lastJumpTime) >= jumpCooldown)
-            {
-                _jumpVelocity = Mathf.Max(0.1f, jumpImpulse);
-                _jumpRequested = false;
-                _lastJumpTime = Time.time;
-            }
-            else if (_jumpRequested && !grounded)
+            bool grounded = hasGroundBelow
+                            && _jumpOffset <= 0.001f
+                            && !jumpCompressing
+                            && Mathf.Abs(_rigidbody.position.y - groundY) <= 0.2f;
+            if (_jumpRequested && Time.time > _jumpRequestExpiresAt)
             {
                 _jumpRequested = false;
             }
 
-            if (_jumpVelocity != 0f || _jumpOffset > 0f)
+            if (_jumpRequested && grounded && (Time.time - _lastJumpTime) >= jumpCooldown)
             {
-                _jumpVelocity -= Mathf.Max(0.1f, jumpGravity) * Time.fixedDeltaTime;
-                _jumpOffset = Mathf.Max(0f, _jumpOffset + (_jumpVelocity * Time.fixedDeltaTime));
-                if (_jumpOffset <= 0f && _jumpVelocity < 0f)
+                _jumpCompressionTimer = Mathf.Max(0.01f, jumpCompressionDuration);
+                _jumpCompressionOffset = 0f;
+                _jumpVelocity = 0f;
+                _jumpOffset = 0f;
+                _jumpRequested = false;
+                _jumpRequestExpiresAt = -999f;
+                _lastJumpTime = Time.time;
+            }
+
+            if (_jumpCompressionTimer > 0f)
+            {
+                _jumpCompressionTimer = Mathf.Max(0f, _jumpCompressionTimer - Time.fixedDeltaTime);
+                float compressionDuration = Mathf.Max(0.01f, jumpCompressionDuration);
+                float progress = 1f - (_jumpCompressionTimer / compressionDuration);
+                _jumpCompressionOffset = -Mathf.Sin(Mathf.Clamp01(progress) * Mathf.PI) * Mathf.Max(0f, jumpCompressionDepth);
+                if (_jumpCompressionTimer <= 0f)
+                {
+                    _jumpCompressionOffset = 0f;
+                    _jumpVelocity = Mathf.Max(0.1f, jumpImpulse);
+                }
+            }
+            else
+            {
+                _jumpCompressionOffset = 0f;
+            }
+
+            float preImpactVelocity = _jumpVelocity;
+            if (_jumpVelocity != 0f || _jumpOffset != 0f || !grounded)
+            {
+                float gravityMultiplier = _jumpVelocity < 0f ? Mathf.Max(1f, fallingGravityMultiplier) : 1f;
+                _jumpVelocity -= Mathf.Max(0.1f, jumpGravity) * gravityMultiplier * Time.fixedDeltaTime;
+                if (hasGroundBelow)
+                {
+                    float desiredWorldY = _rigidbody.position.y + (_jumpVelocity * Time.fixedDeltaTime);
+                    _jumpOffset = Mathf.Max(0f, desiredWorldY - groundY);
+                }
+            }
+
+            grounded = hasGroundBelow
+                       && _jumpOffset <= 0.001f
+                       && _jumpCompressionTimer <= 0f
+                       && Mathf.Abs(_rigidbody.position.y - groundY) <= 0.2f;
+
+            bool landedThisFrame = !_wasGrounded && grounded && preImpactVelocity < -0.25f;
+            if (landedThisFrame)
+            {
+                float rebound = Mathf.Min(maxLandingBounce, -preImpactVelocity * Mathf.Max(0f, landingBounceFactor));
+                if (rebound > 0.05f)
+                {
+                    _jumpVelocity = rebound;
+                    _jumpOffset = Mathf.Max(0.01f, rebound * Time.fixedDeltaTime);
+                    grounded = false;
+                }
+                else
                 {
                     _jumpVelocity = 0f;
                 }
             }
-
-            // Springy landing: convert some downward impact into a small rebound.
-            if (!_wasGrounded && grounded && _jumpVelocity < -0.25f)
+            else if (_jumpOffset <= 0f && _jumpVelocity < 0f)
             {
-                float rebound = Mathf.Min(maxLandingBounce, -_jumpVelocity * Mathf.Max(0f, landingBounceFactor));
-                if (rebound > 0.05f)
+                _jumpVelocity = 0f;
+            }
+
+            if (hasGroundBelow)
+            {
+                targetPosition.y = groundY;
+                if (_jumpCompressionOffset < 0f)
                 {
-                    _jumpVelocity = rebound;
-                    _jumpOffset = Mathf.Max(_jumpOffset, 0.01f);
-                    grounded = false;
+                    targetPosition.y += _jumpCompressionOffset;
+                }
+                if (_jumpOffset != 0f)
+                {
+                    targetPosition.y += _jumpOffset;
                 }
             }
-
-            targetPosition.y = groundY;
-            if (_jumpOffset > 0f)
+            else
             {
-                targetPosition.y += _jumpOffset;
+                _jumpOffset = 0f;
+                targetPosition.y = _rigidbody.position.y + (_jumpVelocity * Time.fixedDeltaTime);
             }
             _rigidbody.MovePosition(targetPosition);
+            _wasGrounded = grounded;
+        }
+
+        private void ApplyRigidbodyGravityMovement(
+            float groundY,
+            bool hasGroundBelow,
+            bool hasTreadClimbAssist,
+            float treadClimbTargetY,
+            float treadClimbFactor)
+        {
+            ClearLegacyVerticalState();
+
+            if (_jumpRequested && Time.time > _jumpRequestExpiresAt)
+            {
+                _jumpRequested = false;
+                _jumpRequestExpiresAt = -999f;
+            }
+
+            Vector3 velocity = _rigidbody.linearVelocity;
+            bool grounded = hasGroundBelow
+                            && Mathf.Abs(_rigidbody.position.y - groundY) <= 0.2f
+                            && velocity.y <= 0.5f;
+
+            if (hasTreadClimbAssist && treadClimbTargetY > (_rigidbody.position.y + 0.01f))
+            {
+                float climbRatio = Mathf.Clamp01((treadClimbTargetY - _rigidbody.position.y) / Mathf.Max(0.1f, maxStepHeight + 0.05f));
+                float liftVelocity = Mathf.Lerp(1.2f, Mathf.Max(1.2f, treadClimbLiftVelocity), Mathf.Max(treadClimbFactor, climbRatio));
+                velocity.y = Mathf.Max(velocity.y, liftVelocity);
+                grounded = false;
+            }
+
+            if (_jumpRequested && grounded && (Time.time - _lastJumpTime) >= jumpCooldown)
+            {
+                velocity.y = Mathf.Max(0f, velocity.y) + Mathf.Max(0.1f, jumpImpulse);
+                _jumpRequested = false;
+                _jumpRequestExpiresAt = -999f;
+                _lastJumpTime = Time.time;
+                grounded = false;
+            }
+            else if (!grounded)
+            {
+                bool jumpHeld = Input.GetKey(KeyCode.Space);
+                float gravityMultiplier = velocity.y > 0.01f
+                    ? (jumpHeld ? rigidbodyRiseGravityMultiplier : rigidbodyJumpCutGravityMultiplier)
+                    : rigidbodyFallGravityMultiplier;
+
+                if (gravityMultiplier > 1f)
+                {
+                    velocity += Physics.gravity * ((gravityMultiplier - 1f) * Time.fixedDeltaTime);
+                }
+
+                velocity.y = Mathf.Max(velocity.y, -Mathf.Max(0.1f, rigidbodyMaxFallSpeed));
+            }
+            else if (velocity.y < rigidbodyGroundedStickVelocity)
+            {
+                velocity.y = rigidbodyGroundedStickVelocity;
+            }
+
+            velocity.x = _planarVelocity.x;
+            velocity.z = _planarVelocity.z;
+            _rigidbody.linearVelocity = velocity;
             _wasGrounded = grounded;
         }
 
@@ -567,9 +776,19 @@ namespace TankRoyale.Gameplay
             groundNormal = Vector3.Slerp(groundNormal, hitNormal, 0.65f);
         }
 
-        private bool TryGetStepClimbTargetY(Transform basis, float throttle, bool hasThrottleInput, out float targetY)
+        private bool TryGetTreadClimbAssist(
+            Transform basis,
+            float throttle,
+            bool hasThrottleInput,
+            out float targetY,
+            out Vector3 landingNormal,
+            out float climbFactor,
+            out Vector3 pullDirection)
         {
             targetY = _rigidbody.position.y;
+            landingNormal = Vector3.up;
+            climbFactor = 0f;
+            pullDirection = Vector3.zero;
             if (!hasThrottleInput || throttle <= 0.1f || basis == null || maxStepHeight <= 0.01f || stepProbeDistance <= 0.01f)
             {
                 return false;
@@ -628,6 +847,18 @@ namespace TankRoyale.Gameplay
             }
 
             targetY = sampledY + groundSnapHeight;
+            landingNormal = sampledNormal;
+            float contactFactor = 1f - Mathf.Clamp01(lowerHit.distance / Mathf.Max(0.1f, stepProbeDistance));
+            float heightFactor = Mathf.InverseLerp(0.03f, maxStepHeight + 0.05f, climbDelta);
+            climbFactor = Mathf.Clamp01((contactFactor * 0.45f) + (heightFactor * 0.55f));
+
+            pullDirection = Vector3.ProjectOnPlane(direction, sampledNormal);
+            pullDirection.y = 0f;
+            if (pullDirection.sqrMagnitude <= 0.0001f)
+            {
+                pullDirection = direction;
+            }
+            pullDirection.Normalize();
             return true;
         }
 
@@ -665,7 +896,17 @@ namespace TankRoyale.Gameplay
 
         private void RotateBodyFromTurnInput()
         {
-            float turn = _moveInput.x;
+            bool mouseDriveActive = IsMouseDriveModeActive();
+            if ((mouseDriveActive || IsEasyMode) && TryRotateBodyTowardAim(ignoreManualTurnInput: mouseDriveActive))
+            {
+                ApplySlopeTilt(tankBody != null ? tankBody : transform);
+                if (mouseDriveActive || Mathf.Abs(_moveInput.x) <= 0.001f)
+                {
+                    return;
+                }
+            }
+
+            float turn = mouseDriveActive ? 0f : _moveInput.x;
 
             Transform body = tankBody != null ? tankBody : transform;
             if (Mathf.Abs(turn) > 0.001f)
@@ -674,6 +915,60 @@ namespace TankRoyale.Gameplay
             }
 
             ApplySlopeTilt(body);
+        }
+
+        private void HandleControlModeToggle()
+        {
+            if (!allowControlModeToggle || controlModeToggleKey == KeyCode.None || !CompareTag("Player"))
+            {
+                return;
+            }
+
+            if (!Input.GetKeyDown(controlModeToggleKey))
+            {
+                return;
+            }
+
+            controlMode = IsEasyMode ? ControlMode.Standard : ControlMode.Easy;
+        }
+
+        private bool TryRotateBodyTowardAim(bool ignoreManualTurnInput = false)
+        {
+            if (!ignoreManualTurnInput && Mathf.Abs(_moveInput.x) > 0.001f)
+            {
+                return false;
+            }
+
+            Transform body = tankBody != null ? tankBody : transform;
+            if (body == null)
+            {
+                return false;
+            }
+
+            if (!TryGetPlanarAimDirection(body, out Vector3 planarAim, out Vector3 upAxis))
+            {
+                return false;
+            }
+
+            Quaternion targetRotation = Quaternion.LookRotation(planarAim, upAxis);
+            body.rotation = Quaternion.RotateTowards(body.rotation, targetRotation, turretRotationSpeed * Time.fixedDeltaTime);
+            return true;
+        }
+
+        private bool IsMouseDriveModeActive()
+        {
+            if (_cachedCamera == null)
+            {
+                _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
+            }
+
+            if (_cachedCamera == null)
+            {
+                return false;
+            }
+
+            CameraController cameraController = _cachedCamera.GetComponent<CameraController>();
+            return cameraController != null && cameraController.IsMouseDriveMode;
         }
 
         private void ApplySlopeTilt(Transform body)
@@ -740,6 +1035,10 @@ namespace TankRoyale.Gameplay
             if (!hasBack) tipBias -= forward;
             if (!hasRight) tipBias += right;
             if (!hasLeft) tipBias -= right;
+            if (_treadClimbPitchBias > 0.001f)
+            {
+                tipBias -= forward * (_treadClimbPitchBias * Mathf.Clamp01(treadClimbPitchStrength));
+            }
 
             if (tipBias.sqrMagnitude <= 0.0001f)
             {
@@ -785,37 +1084,17 @@ namespace TankRoyale.Gameplay
             }
 
             Transform basis = tankBody != null ? tankBody : transform;
-            Vector3 lookForward = _cachedCamera != null ? _cachedCamera.transform.forward : basis.forward;
-            CameraController cameraController = _cachedCamera != null ? _cachedCamera.GetComponent<CameraController>() : null;
-            if (cameraController != null)
+            if (!TryGetPlanarAimDirection(basis, out Vector3 planarAim, out Vector3 upAxis, out Vector3 lookForward))
             {
-                if (cameraController.IsWorldExplorerMode)
-                {
-                    return;
-                }
-
-                lookForward = cameraController.AimForward;
+                return;
             }
 
-            Vector3 upAxis = basis.up.sqrMagnitude > 0.0001f ? basis.up.normalized : Vector3.up;
             Vector3 baseForward = Vector3.ProjectOnPlane(basis.forward, upAxis);
             if (baseForward.sqrMagnitude <= 0.0001f)
             {
-                baseForward = Vector3.ProjectOnPlane(transform.forward, upAxis);
-            }
-            if (baseForward.sqrMagnitude <= 0.0001f)
-            {
-                baseForward = Vector3.forward;
+                baseForward = planarAim;
             }
             baseForward.Normalize();
-
-            Vector3 planarAim = Vector3.ProjectOnPlane(lookForward, upAxis);
-            if (planarAim.sqrMagnitude <= 0.0001f)
-            {
-                planarAim = baseForward;
-            }
-
-            planarAim.Normalize();
 
             float targetYaw = Vector3.SignedAngle(baseForward, planarAim, upAxis);
             Vector3 rightAxis = Vector3.Cross(upAxis, planarAim);
@@ -859,6 +1138,60 @@ namespace TankRoyale.Gameplay
             }
         }
 
+        private bool TryGetPlanarAimDirection(Transform basis, out Vector3 planarAim, out Vector3 upAxis)
+        {
+            return TryGetPlanarAimDirection(basis, out planarAim, out upAxis, out _);
+        }
+
+        private bool TryGetPlanarAimDirection(Transform basis, out Vector3 planarAim, out Vector3 upAxis, out Vector3 lookForward)
+        {
+            planarAim = Vector3.zero;
+            lookForward = Vector3.zero;
+            upAxis = basis != null && basis.up.sqrMagnitude > 0.0001f ? basis.up.normalized : Vector3.up;
+
+            if (_cachedCamera == null)
+            {
+                _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
+            }
+
+            if (basis == null)
+            {
+                basis = transform;
+            }
+
+            lookForward = _cachedCamera != null ? _cachedCamera.transform.forward : basis.forward;
+            CameraController cameraController = _cachedCamera != null ? _cachedCamera.GetComponent<CameraController>() : null;
+            if (cameraController != null)
+            {
+                if (cameraController.IsWorldExplorerMode)
+                {
+                    return false;
+                }
+
+                lookForward = cameraController.AimForward;
+            }
+
+            Vector3 baseForward = Vector3.ProjectOnPlane(basis.forward, upAxis);
+            if (baseForward.sqrMagnitude <= 0.0001f)
+            {
+                baseForward = Vector3.ProjectOnPlane(transform.forward, upAxis);
+            }
+            if (baseForward.sqrMagnitude <= 0.0001f)
+            {
+                baseForward = Vector3.forward;
+            }
+            baseForward.Normalize();
+
+            planarAim = Vector3.ProjectOnPlane(lookForward, upAxis);
+            if (planarAim.sqrMagnitude <= 0.0001f)
+            {
+                planarAim = baseForward;
+            }
+
+            planarAim.Normalize();
+            return true;
+        }
+
         private bool ShouldSuppressTankInputForCurrentCameraMode()
         {
             if (_cachedCamera == null)
@@ -879,33 +1212,86 @@ namespace TankRoyale.Gameplay
         {
             if (tankBody != null) return tankBody;
 
-            Transform explicitBody = transform.Find("TankBody");
+            Transform searchRoot = _visualRoot != null ? _visualRoot : transform;
+            Transform explicitBody = FindTransformByName(searchRoot, "TankBody", "Chassis", "Hull", "Body");
             if (explicitBody != null) return explicitBody;
 
-            Transform[] all = GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < all.Length; i++)
+            Transform containsBody = FindTransformByToken(searchRoot,
+                new[] { "chassis", "tankbody", "hull", "body" },
+                new[] { "turret", "gun", "cannon", "muzzle", "firepoint" });
+            if (containsBody != null) return containsBody;
+
+            if (searchRoot != transform)
             {
-                string n = all[i].name.ToLowerInvariant();
-                if (n.Contains("body") || n.Contains("hull") || n.Contains("chassis"))
-                    return all[i];
+                explicitBody = FindTransformByName(transform, "TankBody", "Chassis", "Hull", "Body");
+                if (explicitBody != null) return explicitBody;
+
+                containsBody = FindTransformByToken(transform,
+                    new[] { "chassis", "tankbody", "hull", "body" },
+                    new[] { "turret", "gun", "cannon", "muzzle", "firepoint" });
+                if (containsBody != null) return containsBody;
             }
 
             return transform;
+        }
+
+        private Transform ResolveVisualRoot()
+        {
+            Transform explicitVisual = transform.Find("Visual");
+            if (explicitVisual != null)
+            {
+                return explicitVisual;
+            }
+
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform child = transform.GetChild(i);
+                if (child.name.ToLowerInvariant().Contains("visual"))
+                {
+                    return child;
+                }
+            }
+
+            return null;
+        }
+
+        private void ApplyVisualRootLocalOffset()
+        {
+            if (_visualRoot == null)
+            {
+                return;
+            }
+
+            _visualRoot.localPosition = visualRootLocalOffset;
         }
 
         private Transform ResolveTurretTransform()
         {
             if (turret != null) return turret;
 
-            Transform explicitTurret = transform.Find("Turret");
+            Transform searchRoot = _visualRoot != null ? _visualRoot : transform;
+            Transform explicitTurret = FindTransformByName(searchRoot, "Turret", "turret");
             if (explicitTurret != null) return explicitTurret;
 
-            Transform[] all = GetComponentsInChildren<Transform>(true);
-            for (int i = 0; i < all.Length; i++)
+            Transform turretByName = FindTransformByToken(searchRoot,
+                new[] { "turret" },
+                new[] { "muzzle", "firepoint", "barrelend" });
+            if (turretByName != null) return turretByName;
+
+            Transform turretByFallbackName = FindTransformByToken(searchRoot,
+                new[] { "cannon", "gun" },
+                new[] { "muzzle", "firepoint", "barrel", "projectile" });
+            if (turretByFallbackName != null) return turretByFallbackName;
+
+            if (searchRoot != transform)
             {
-                string n = all[i].name.ToLowerInvariant();
-                if (n.Contains("turret") || n.Contains("cannon") || n.Contains("gun"))
-                    return all[i];
+                explicitTurret = FindTransformByName(transform, "Turret", "turret");
+                if (explicitTurret != null) return explicitTurret;
+
+                turretByName = FindTransformByToken(transform,
+                    new[] { "turret" },
+                    new[] { "muzzle", "firepoint", "barrelend" });
+                if (turretByName != null) return turretByName;
             }
 
             return tankBody != null ? tankBody : transform;
@@ -948,6 +1334,85 @@ namespace TankRoyale.Gameplay
             go.transform.localPosition = new Vector3(0f, 0.2f, 1.6f);
             go.transform.localRotation = Quaternion.identity;
             return go.transform;
+        }
+
+        private static Transform FindTransformByName(Transform root, params string[] names)
+        {
+            if (root == null || names == null || names.Length == 0)
+            {
+                return null;
+            }
+
+            Transform[] all = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < names.Length; i++)
+            {
+                string target = names[i];
+                for (int j = 0; j < all.Length; j++)
+                {
+                    if (all[j] != null && string.Equals(all[j].name, target, System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        return all[j];
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static Transform FindTransformByToken(Transform root, string[] includeTokens, string[] excludeTokens = null)
+        {
+            if (root == null || includeTokens == null || includeTokens.Length == 0)
+            {
+                return null;
+            }
+
+            Transform[] all = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform candidate = all[i];
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                string name = candidate.name.ToLowerInvariant();
+                bool include = false;
+                for (int j = 0; j < includeTokens.Length; j++)
+                {
+                    if (name.Contains(includeTokens[j]))
+                    {
+                        include = true;
+                        break;
+                    }
+                }
+
+                if (!include)
+                {
+                    continue;
+                }
+
+                if (excludeTokens != null)
+                {
+                    bool excluded = false;
+                    for (int j = 0; j < excludeTokens.Length; j++)
+                    {
+                        if (name.Contains(excludeTokens[j]))
+                        {
+                            excluded = true;
+                            break;
+                        }
+                    }
+
+                    if (excluded)
+                    {
+                        continue;
+                    }
+                }
+
+                return candidate;
+            }
+
+            return null;
         }
 
         private Transform FindBestMuzzleFromTurret(Transform turretRoot)
@@ -1123,6 +1588,40 @@ namespace TankRoyale.Gameplay
             }
         }
 
+        private float GetCapsuleBottomY()
+        {
+            return _capsuleCollider != null ? _capsuleCollider.bounds.min.y : transform.position.y;
+        }
+
+        private float GetTankRendererBottomY()
+        {
+            bool foundVisibleGeometry = false;
+            float minY = float.PositiveInfinity;
+
+            for (int i = 0; i < _allTankRenderers.Length; i++)
+            {
+                Renderer renderer = _allTankRenderers[i];
+                if (renderer == null
+                    || renderer is LineRenderer
+                    || renderer is TrailRenderer
+                    || renderer is ParticleSystemRenderer)
+                {
+                    continue;
+                }
+
+                Bounds bounds = renderer.bounds;
+                if (bounds.extents.sqrMagnitude <= 0f)
+                {
+                    continue;
+                }
+
+                foundVisibleGeometry = true;
+                minY = Mathf.Min(minY, bounds.min.y);
+            }
+
+            return foundVisibleGeometry ? minY : transform.position.y;
+        }
+
         private float NormalizeDegrees(float angle)
         {
             angle %= 360f;
@@ -1131,7 +1630,31 @@ namespace TankRoyale.Gameplay
             return angle;
         }
 
-        private float SampleGroundHeight(Vector3 proposedPosition, out Vector3 normal)
+        private VerticalMotionMode ResolveVerticalMotionMode()
+        {
+            if (verticalMotionMode != VerticalMotionMode.SceneDefault)
+            {
+                return verticalMotionMode;
+            }
+
+            Scene activeScene = SceneManager.GetActiveScene();
+            if (CompareTag("Player") && activeScene.IsValid() && activeScene.name == "Climber")
+            {
+                return VerticalMotionMode.RigidbodyGravity;
+            }
+
+            return VerticalMotionMode.CustomSnap;
+        }
+
+        private void ClearLegacyVerticalState()
+        {
+            _jumpVelocity = 0f;
+            _jumpOffset = 0f;
+            _jumpCompressionTimer = 0f;
+            _jumpCompressionOffset = 0f;
+        }
+
+        private float SampleGroundHeight(Vector3 proposedPosition, out Vector3 normal, out bool foundGround)
         {
             float maxDist = groundProbeHeight * 4f;
             Vector3[] offsets =
@@ -1170,10 +1693,12 @@ namespace TankRoyale.Gameplay
 
             if (!foundAny || totalWeight <= 0.0001f)
             {
+                foundGround = false;
                 normal = _groundNormal.sqrMagnitude > 0.0001f ? _groundNormal : Vector3.up;
-                return _groundHeight;
+                return proposedPosition.y;
             }
 
+            foundGround = true;
             _groundHeight = (weightedHeight / totalWeight) + groundSnapHeight;
             normal = weightedNormal.sqrMagnitude > 0.0001f ? (weightedNormal / totalWeight).normalized : Vector3.up;
             return _groundHeight;

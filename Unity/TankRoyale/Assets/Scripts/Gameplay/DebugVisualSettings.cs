@@ -3,7 +3,7 @@ namespace TankRoyale.Gameplay
     public static class DebugVisualSettings
     {
         public static bool ShowMenu;
-        public static bool ShowColliderBounds = true;
+        public static bool ShowColliderBounds;
         public static bool ShowRaycasts;
         public static bool ShowProjectileArc;
         public static bool ShowTrajectoryLine;
@@ -14,7 +14,7 @@ namespace TankRoyale.Gameplay
         public static void ResetDefaults()
         {
             ShowMenu = false;
-            ShowColliderBounds = true;
+            ShowColliderBounds = false;
             ShowRaycasts = false;
             ShowProjectileArc = false;
             ShowTrajectoryLine = false;
