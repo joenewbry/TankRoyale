@@ -45,8 +45,9 @@ namespace TankRoyale.Gameplay
             GUILayout.Label("Core Movement");
             GUILayout.Label("W/S or Up/Down: Forward / Backward");
             GUILayout.Label("A/D or Left/Right: Turn Left / Right");
-            GUILayout.Label("Space or Mouse Left: Fire");
-            GUILayout.Label("R: Reset player position to spawn");
+            GUILayout.Label("Space (Jump): Jump");
+            GUILayout.Label("Mouse Left (Fire): Shoot");
+            GUILayout.Label("R (Reset): Reset player position to spawn");
 
             GUILayout.Space(8f);
             GUILayout.Label("Camera");
@@ -62,18 +63,19 @@ namespace TankRoyale.Gameplay
 
             GUILayout.Space(8f);
             GUILayout.Label("Debug / Settings");
-            GUILayout.Label("K: Toggle this settings menu");
-            GUILayout.Label("P: Toggle asset palette menu");
-            GUILayout.Label("Right Mouse: Place selected build block");
-            GUILayout.Label("Mouse Wheel: Cycle build block options");
-            GUILayout.Label("G: Toggle god mode");
-            GUILayout.Label("` : Toggle debug menu");
-            GUILayout.Label("F2: Hitboxes");
-            GUILayout.Label("F3: Rays");
-            GUILayout.Label("F4: Arc");
-            GUILayout.Label("F5: Wireframe");
-            GUILayout.Label("F6: Shadows");
-            GUILayout.Label("T: Target balance mode");
+            GUILayout.Label("K (Settings): Toggle this settings menu");
+            GUILayout.Label("P (Palette): Toggle asset palette menu");
+            GUILayout.Label("Right Mouse (Build): Place selected build block");
+            GUILayout.Label("Mouse Wheel (Build): Cycle block options");
+            GUILayout.Label("R (Rotate Build): Rotate slope/block preview");
+            GUILayout.Label("G (God Mode): Toggle god mode");
+            GUILayout.Label("1 (Tank Debug): Toggle debug menu");
+            GUILayout.Label("2 (Hitboxes): Toggle collider bounds");
+            GUILayout.Label("3 (Rays): Toggle debug rays");
+            GUILayout.Label("4 (Arc): Toggle projectile arc");
+            GUILayout.Label("5 (Wireframe): Toggle wireframe");
+            GUILayout.Label("6 (Shadows): Toggle shadow disable");
+            GUILayout.Label("T (Target Balance): Toggle cactus balance mode");
 
             GUI.DragWindow(new Rect(0f, 0f, 5000f, 22f));
         }

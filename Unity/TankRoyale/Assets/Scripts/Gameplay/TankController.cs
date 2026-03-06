@@ -43,6 +43,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float stepLiftSpeed = 8f;
         [SerializeField] private float maxStepRisePerSecond = 2.6f;
         [SerializeField] private float stepGroundProbePadding = 0.2f;
+        [SerializeField] private float jumpImpulse = 4.2f;
+        [SerializeField] private float jumpGravity = 12.5f;
+        [SerializeField] private float jumpCooldown = 0.2f;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
         [SerializeField] private float maxSlopeTiltAngle = 18f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
@@ -113,6 +116,10 @@ namespace TankRoyale.Gameplay
         private LineRenderer _trajectoryLine;
         private static Material _trajectoryLineMaterial;
         private float _nextMouseLogTime;
+        private float _jumpVelocity;
+        private float _jumpOffset;
+        private bool _jumpRequested;
+        private float _lastJumpTime = -999f;
 
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
@@ -247,11 +254,14 @@ namespace TankRoyale.Gameplay
 
         private void HandleFireInput()
         {
-            if (_weaponController == null) return;
-
-            if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButtonDown(0) && _weaponController != null)
             {
                 _weaponController.Fire();
+            }
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                _jumpRequested = true;
             }
         }
 
@@ -390,7 +400,8 @@ namespace TankRoyale.Gameplay
             }
 
             Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
-            if (TryGetStepClimbTargetY(basis, throttle, hasThrottleInput, out float stepY))
+            bool canStepAssist = _jumpOffset <= 0.001f;
+            if (canStepAssist && TryGetStepClimbTargetY(basis, throttle, hasThrottleInput, out float stepY))
             {
                 float climbDelta = Mathf.Max(0f, stepY - _rigidbody.position.y);
                 float maxRise = Mathf.Max(0.01f, maxStepRisePerSecond) * Time.fixedDeltaTime;
@@ -399,7 +410,33 @@ namespace TankRoyale.Gameplay
                 groundY = Mathf.Max(groundY, climbedY);
             }
 
+            bool grounded = _jumpOffset <= 0.001f && Mathf.Abs(_rigidbody.position.y - groundY) <= 0.2f;
+            if (_jumpRequested && grounded && (Time.time - _lastJumpTime) >= jumpCooldown)
+            {
+                _jumpVelocity = Mathf.Max(0.1f, jumpImpulse);
+                _jumpRequested = false;
+                _lastJumpTime = Time.time;
+            }
+            else if (_jumpRequested && !grounded)
+            {
+                _jumpRequested = false;
+            }
+
+            if (_jumpVelocity != 0f || _jumpOffset > 0f)
+            {
+                _jumpVelocity -= Mathf.Max(0.1f, jumpGravity) * Time.fixedDeltaTime;
+                _jumpOffset = Mathf.Max(0f, _jumpOffset + (_jumpVelocity * Time.fixedDeltaTime));
+                if (_jumpOffset <= 0f && _jumpVelocity < 0f)
+                {
+                    _jumpVelocity = 0f;
+                }
+            }
+
             targetPosition.y = groundY;
+            if (_jumpOffset > 0f)
+            {
+                targetPosition.y += _jumpOffset;
+            }
             _rigidbody.MovePosition(targetPosition);
         }
 

@@ -9,8 +9,8 @@ namespace TankRoyale.Gameplay
     [RequireComponent(typeof(Rigidbody))]
     public class Projectile : MonoBehaviour
     {
-        [SerializeField] private float lifetimeSeconds = 5f;
-        [SerializeField] private int maxBounces = 10;
+        [SerializeField] private float lifetimeSeconds = 3f;
+        [SerializeField] private int maxBounces = 2;
         [Header("Paintball Splatter")]
         [SerializeField] private bool spawnPaintSplatters = true;
         [SerializeField] private Color splatterColor = new Color(0.95f, 0.2f, 0.3f, 1f);
@@ -22,6 +22,9 @@ namespace TankRoyale.Gameplay
         [Header("Explosive")]
         [SerializeField] private float explosionRadius = 2.4f;
         [SerializeField] private bool breakBlocksOnAnyHit = true;
+        [SerializeField] private bool spawnImpactFog = true;
+        [SerializeField] private float impactFogLifetime = 0.9f;
+        [SerializeField] private float impactFogScale = 0.8f;
 
         [Header("Runtime Powerup Flags")]
         public bool isRicochet;
@@ -46,6 +49,7 @@ namespace TankRoyale.Gameplay
         private Color _paintColor;
         public Color PaintColor => _paintColor;
         private static Texture2D _splatTexture;
+        private bool _hasImpacted;
 
         private void Awake()
         {
@@ -58,7 +62,7 @@ namespace TankRoyale.Gameplay
         private void Start()
         {
             _powerupManager = FindFirstObjectByType<PowerupManager>();
-            Destroy(gameObject, lifetimeSeconds);
+            StartCoroutine(SelfDestructTimer());
         }
 
         private void FixedUpdate()
@@ -150,6 +154,9 @@ namespace TankRoyale.Gameplay
             {
                 return;
             }
+
+            _hasImpacted = true;
+            SpawnImpactFogAt(point);
 
             GameObject hitObject = hitCollider.gameObject;
             TargetCactus cactus = hitCollider.GetComponentInParent<TargetCactus>();
@@ -569,6 +576,82 @@ namespace TankRoyale.Gameplay
             Gizmos.DrawRay(_lastBouncePoint, _lastBounceNormal);
             Gizmos.color = Color.magenta;
             Gizmos.DrawRay(_lastBouncePoint, _lastBounceOut);
+        }
+
+        private System.Collections.IEnumerator SelfDestructTimer()
+        {
+            yield return new WaitForSeconds(Mathf.Max(0.2f, lifetimeSeconds));
+
+            if (this == null || !gameObject.activeInHierarchy)
+            {
+                yield break;
+            }
+
+            if (!_hasImpacted)
+            {
+                SpawnImpactFogAt(transform.position);
+            }
+
+            Destroy(gameObject);
+        }
+
+        private void SpawnImpactFogAt(Vector3 position)
+        {
+            if (!spawnImpactFog)
+            {
+                return;
+            }
+
+            GameObject fog = new GameObject("ImpactFog");
+            fog.transform.position = position + Vector3.up * 0.05f;
+            ParticleSystem ps = fog.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = ps.main;
+            main.duration = impactFogLifetime;
+            main.loop = false;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.35f, impactFogLifetime);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(0.15f, 0.85f);
+            main.startSize = new ParticleSystem.MinMaxCurve(impactFogScale * 0.35f, impactFogScale);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.75f, 0.75f, 0.75f, 0.6f));
+            main.maxParticles = 48;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.playOnAwake = true;
+
+            ParticleSystem.EmissionModule emission = ps.emission;
+            emission.rateOverTime = 0f;
+            emission.SetBursts(new[]
+            {
+                new ParticleSystem.Burst(0f, 14, 22)
+            });
+
+            ParticleSystem.ShapeModule shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Hemisphere;
+            shape.radius = Mathf.Max(0.12f, impactFogScale * 0.45f);
+
+            ParticleSystem.ColorOverLifetimeModule col = ps.colorOverLifetime;
+            col.enabled = true;
+            Gradient g = new Gradient();
+            g.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(new Color(0.65f, 0.65f, 0.65f, 1f), 1f)
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0.55f, 0f),
+                    new GradientAlphaKey(0f, 1f)
+                });
+            col.color = new ParticleSystem.MinMaxGradient(g);
+
+            ParticleSystemRenderer renderer = ps.GetComponent<ParticleSystemRenderer>();
+            if (renderer != null)
+            {
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
+            ps.Play();
+            Destroy(fog, Mathf.Max(0.6f, impactFogLifetime + 0.5f));
         }
     }
 }

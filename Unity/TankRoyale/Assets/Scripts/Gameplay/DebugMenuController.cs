@@ -5,12 +5,12 @@ namespace TankRoyale.Gameplay
     [DisallowMultipleComponent]
     public class DebugMenuController : MonoBehaviour
     {
-        [SerializeField] private KeyCode toggleMenuKey = KeyCode.BackQuote;
-        [SerializeField] private KeyCode quickHitboxKey = KeyCode.F2;
-        [SerializeField] private KeyCode quickRayKey = KeyCode.F3;
-        [SerializeField] private KeyCode quickArcKey = KeyCode.F4;
-        [SerializeField] private KeyCode quickWireframeKey = KeyCode.F5;
-        [SerializeField] private KeyCode quickShadowKey = KeyCode.F6;
+        [SerializeField] private KeyCode toggleMenuKey = KeyCode.Alpha1;
+        [SerializeField] private KeyCode quickHitboxKey = KeyCode.Alpha2;
+        [SerializeField] private KeyCode quickRayKey = KeyCode.Alpha3;
+        [SerializeField] private KeyCode quickArcKey = KeyCode.Alpha4;
+        [SerializeField] private KeyCode quickWireframeKey = KeyCode.Alpha5;
+        [SerializeField] private KeyCode quickShadowKey = KeyCode.Alpha6;
         [SerializeField] private Rect menuRect = new Rect(18f, 18f, 360f, 340f);
         private ShadowQuality _defaultShadows = ShadowQuality.All;
         private bool _shadowQualityCached;
@@ -86,22 +86,22 @@ namespace TankRoyale.Gameplay
         private void DrawMenuWindow(int windowId)
         {
             GUILayout.Label("Views + Visual Debug");
-            DebugVisualSettings.ShowColliderBounds = GUILayout.Toggle(DebugVisualSettings.ShowColliderBounds, "Show Hitboxes / Colliders");
-            DebugVisualSettings.ShowRaycasts = GUILayout.Toggle(DebugVisualSettings.ShowRaycasts, "Show Ground / Trace Rays");
-            DebugVisualSettings.ShowProjectileArc = GUILayout.Toggle(DebugVisualSettings.ShowProjectileArc, "Show Projectile Arc");
+            DebugVisualSettings.ShowColliderBounds = GUILayout.Toggle(DebugVisualSettings.ShowColliderBounds, "Show Hitboxes / Colliders (2)");
+            DebugVisualSettings.ShowRaycasts = GUILayout.Toggle(DebugVisualSettings.ShowRaycasts, "Show Ground / Trace Rays (3)");
+            DebugVisualSettings.ShowProjectileArc = GUILayout.Toggle(DebugVisualSettings.ShowProjectileArc, "Show Projectile Arc (4)");
             DebugVisualSettings.ShowTrajectoryLine = GUILayout.Toggle(DebugVisualSettings.ShowTrajectoryLine, "Show Trajectory Line");
             DebugVisualSettings.ShowBounceNormals = GUILayout.Toggle(DebugVisualSettings.ShowBounceNormals, "Show Bounce Normals");
-            DebugVisualSettings.Wireframe = GUILayout.Toggle(DebugVisualSettings.Wireframe, "Wireframe Rendering");
-            DebugVisualSettings.DisableShadows = GUILayout.Toggle(DebugVisualSettings.DisableShadows, "Disable Shadows");
+            DebugVisualSettings.Wireframe = GUILayout.Toggle(DebugVisualSettings.Wireframe, "Wireframe Rendering (5)");
+            DebugVisualSettings.DisableShadows = GUILayout.Toggle(DebugVisualSettings.DisableShadows, "Disable Shadows (6)");
 
             GUILayout.Space(10f);
             GUILayout.Label("Hotkeys");
-            GUILayout.Label("` : Toggle Menu");
-            GUILayout.Label("F2: Hitboxes");
-            GUILayout.Label("F3: Rays");
-            GUILayout.Label("F4: Arc");
-            GUILayout.Label("F5: Wireframe");
-            GUILayout.Label("F6: Shadows");
+            GUILayout.Label("1 : Toggle Menu");
+            GUILayout.Label("2 : Hitboxes");
+            GUILayout.Label("3 : Rays");
+            GUILayout.Label("4 : Arc");
+            GUILayout.Label("5 : Wireframe");
+            GUILayout.Label("6 : Shadows");
             GUILayout.Label("Tab: Cycle Camera (IN_TANK/MUZZLE/TOP/OVERHEAD/WORLD)");
 
             GUI.DragWindow(new Rect(0f, 0f, 5000f, 22f));

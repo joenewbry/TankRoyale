@@ -1,5 +1,9 @@
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace TankRoyale.Gameplay
 {
     [DisallowMultipleComponent]
@@ -8,22 +12,28 @@ namespace TankRoyale.Gameplay
         private struct BuildOption
         {
             public string name;
-            public PrimitiveType primitive;
-            public Vector3 scale;
-            public Vector3 euler;
+            public string modelAssetPath;
+            public Vector3 scaleMultiplier;
             public Color color;
         }
 
         [SerializeField] private KeyCode godModeKey = KeyCode.G;
+        [SerializeField] private KeyCode rotateBuildKey = KeyCode.R;
         [SerializeField] private float maxBuildDistance = 18f;
         [SerializeField] private float godModeBuildDistance = 85f;
         [SerializeField] private float gridSize = 1f;
         [SerializeField] private bool snapToGrid = true;
         [SerializeField] private bool showBuildHud = true;
+        [SerializeField] private float previewAlpha = 0.35f;
+        [SerializeField] private float normalSurfaceOffset = 0.02f;
 
         private int _selectedIndex;
         private Transform _playerTank;
         private BuildOption[] _options;
+        private int _rotationQuarterTurns;
+        private GameObject _previewInstance;
+        private BuildOption? _previewOption;
+        private string _previewAssetPath;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureController()
@@ -44,34 +54,16 @@ namespace TankRoyale.Gameplay
             {
                 new BuildOption
                 {
-                    name = "Cube",
-                    primitive = PrimitiveType.Cube,
-                    scale = new Vector3(1f, 1f, 1f),
-                    euler = Vector3.zero,
+                    name = "Ground_02",
+                    modelAssetPath = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Source File/3D_Tile_Ground_02.fbx",
+                    scaleMultiplier = Vector3.one,
                     color = new Color(0.78f, 0.66f, 0.48f, 1f)
                 },
                 new BuildOption
                 {
-                    name = "Wall",
-                    primitive = PrimitiveType.Cube,
-                    scale = new Vector3(1f, 2f, 0.45f),
-                    euler = Vector3.zero,
-                    color = new Color(0.62f, 0.54f, 0.41f, 1f)
-                },
-                new BuildOption
-                {
-                    name = "Pad",
-                    primitive = PrimitiveType.Cube,
-                    scale = new Vector3(2f, 0.35f, 2f),
-                    euler = Vector3.zero,
-                    color = new Color(0.58f, 0.62f, 0.66f, 1f)
-                },
-                new BuildOption
-                {
-                    name = "Ramp",
-                    primitive = PrimitiveType.Cube,
-                    scale = new Vector3(2f, 0.5f, 2f),
-                    euler = new Vector3(0f, 0f, -28f),
+                    name = "Ground_Slope_02",
+                    modelAssetPath = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Source File/3D_Tile_Ground_Slope_02.fbx",
+                    scaleMultiplier = Vector3.one,
                     color = new Color(0.72f, 0.58f, 0.42f, 1f)
                 }
             };
@@ -92,12 +84,20 @@ namespace TankRoyale.Gameplay
             {
                 int delta = scroll > 0f ? 1 : -1;
                 _selectedIndex = (_selectedIndex + delta + _options.Length) % _options.Length;
+                _rotationQuarterTurns = 0;
+            }
+
+            if (Input.GetKeyDown(rotateBuildKey))
+            {
+                _rotationQuarterTurns = (_rotationQuarterTurns + 1) % 4;
             }
 
             if (Input.GetMouseButtonDown(1))
             {
                 TryPlaceBlock();
             }
+
+            UpdatePreview();
         }
 
         private void ResolvePlayer()
@@ -134,37 +134,27 @@ namespace TankRoyale.Gameplay
             }
 
             BuildOption option = _options[_selectedIndex];
-            Quaternion rotation = Quaternion.Euler(option.euler);
-            if (option.name == "Wall")
-            {
-                Vector3 fwd = Vector3.ProjectOnPlane(-hit.normal, Vector3.up);
-                if (fwd.sqrMagnitude > 0.001f)
-                {
-                    rotation = Quaternion.LookRotation(fwd.normalized, Vector3.up);
-                }
-            }
+            Quaternion rotation = GetPlacementRotation(hit.normal);
 
-            float normalOffset = Mathf.Max(option.scale.x, option.scale.y, option.scale.z) * 0.5f;
-            Vector3 position = hit.point + hit.normal * (normalOffset + 0.02f);
+            Vector3 position = hit.point + hit.normal * normalSurfaceOffset;
             if (snapToGrid && gridSize > 0.01f)
             {
                 position = Snap(position, gridSize);
             }
 
-            GameObject block = GameObject.CreatePrimitive(option.primitive);
+            GameObject block = CreateBlockInstance(option);
+            if (block == null)
+            {
+                return;
+            }
+
             block.name = "BuildBlock_" + option.name;
             block.transform.SetPositionAndRotation(position, rotation);
-            block.transform.localScale = option.scale;
+            block.transform.localScale = Vector3.Scale(block.transform.localScale, option.scaleMultiplier);
 
             try { block.tag = "Block"; } catch { }
 
-            Renderer renderer = block.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                Material m = new Material(renderer.sharedMaterial);
-                m.color = option.color;
-                renderer.material = m;
-            }
+            ApplyColorToRenderers(block, option.color, 1f);
         }
 
         private void OnGUI()
@@ -183,7 +173,157 @@ namespace TankRoyale.Gameplay
 
             string mode = GameCheatState.GodModeEnabled ? "ON" : "OFF";
             GUI.Label(new Rect(12f, 34f, 540f, 22f),
-                $"BUILD: {_options[_selectedIndex].name} (MouseWheel) | Place: RMB | GodMode[G]: {mode}", style);
+                $"BUILD: {_options[_selectedIndex].name} (MouseWheel) | Rotate[R] | Place[RMB] | GodMode[G]: {mode}", style);
+        }
+
+        private void UpdatePreview()
+        {
+            Camera cam = Camera.main;
+            if (cam == null || _options == null || _options.Length == 0)
+            {
+                DestroyPreview();
+                return;
+            }
+
+            Vector3 rayPoint = Cursor.lockState == CursorLockMode.Locked
+                ? new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f)
+                : Input.mousePosition;
+            Ray ray = cam.ScreenPointToRay(rayPoint);
+            float maxDistance = GameCheatState.GodModeEnabled ? godModeBuildDistance : maxBuildDistance;
+            if (!Physics.Raycast(ray, out RaycastHit hit, maxDistance, ~0, QueryTriggerInteraction.Ignore))
+            {
+                DestroyPreview();
+                return;
+            }
+
+            BuildOption option = _options[_selectedIndex];
+            EnsurePreview(option);
+            if (_previewInstance == null)
+            {
+                return;
+            }
+
+            Quaternion rotation = GetPlacementRotation(hit.normal);
+            Vector3 position = hit.point + hit.normal * normalSurfaceOffset;
+            if (snapToGrid && gridSize > 0.01f)
+            {
+                position = Snap(position, gridSize);
+            }
+
+            _previewInstance.transform.SetPositionAndRotation(position, rotation);
+            _previewInstance.transform.localScale = Vector3.Scale(Vector3.one, option.scaleMultiplier);
+            ApplyColorToRenderers(_previewInstance, option.color, Mathf.Clamp01(previewAlpha));
+        }
+
+        private void EnsurePreview(BuildOption option)
+        {
+            bool needsNew = _previewInstance == null
+                            || _previewAssetPath != option.modelAssetPath
+                            || !_previewOption.HasValue
+                            || _previewOption.Value.name != option.name;
+            if (!needsNew)
+            {
+                return;
+            }
+
+            DestroyPreview();
+            _previewInstance = CreateBlockInstance(option);
+            if (_previewInstance == null)
+            {
+                return;
+            }
+
+            _previewInstance.name = "BuildPreview_" + option.name;
+            Collider[] colliders = _previewInstance.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = false;
+            }
+
+            _previewAssetPath = option.modelAssetPath;
+            _previewOption = option;
+        }
+
+        private void DestroyPreview()
+        {
+            if (_previewInstance != null)
+            {
+                Destroy(_previewInstance);
+                _previewInstance = null;
+            }
+        }
+
+        private GameObject CreateBlockInstance(BuildOption option)
+        {
+#if UNITY_EDITOR
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(option.modelAssetPath);
+            if (prefab != null)
+            {
+                return Instantiate(prefab);
+            }
+#endif
+            return GameObject.CreatePrimitive(PrimitiveType.Cube);
+        }
+
+        private Quaternion GetPlacementRotation(Vector3 hitNormal)
+        {
+            bool isSlope = _options[_selectedIndex].name.Contains("Slope");
+            if (!isSlope)
+            {
+                return Quaternion.identity;
+            }
+
+            Quaternion baseRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+            Quaternion quarter = Quaternion.Euler(0f, _rotationQuarterTurns * 90f, 0f);
+            if (hitNormal.y < 0.5f)
+            {
+                Vector3 facing = Vector3.ProjectOnPlane(-hitNormal, Vector3.up);
+                if (facing.sqrMagnitude > 0.0001f)
+                {
+                    baseRotation = Quaternion.LookRotation(facing.normalized, Vector3.up);
+                }
+            }
+
+            return quarter * baseRotation;
+        }
+
+        private static void ApplyColorToRenderers(GameObject go, Color color, float alpha)
+        {
+            if (go == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = go.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null || renderer.sharedMaterial == null)
+                {
+                    continue;
+                }
+
+                Material m = new Material(renderer.sharedMaterial);
+                Color c = color;
+                c.a = alpha;
+                if (m.HasProperty("_Color"))
+                {
+                    m.color = c;
+                }
+
+                if (alpha < 0.999f)
+                {
+                    m.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    m.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    m.SetInt("_ZWrite", 0);
+                    m.DisableKeyword("_ALPHATEST_ON");
+                    m.EnableKeyword("_ALPHABLEND_ON");
+                    m.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                    m.renderQueue = 3000;
+                }
+
+                renderer.material = m;
+            }
         }
 
         private static Vector3 Snap(Vector3 value, float step)

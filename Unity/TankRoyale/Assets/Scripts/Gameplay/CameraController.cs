@@ -26,6 +26,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Color cockpitMaskColor = new Color(0f, 0f, 0f, 0.55f);
         [SerializeField] private bool showTargetArrow = true;
         [SerializeField] private bool showTurnDirectionArrow = true;
+        [SerializeField] private float inTankClimbLift = 0.35f;
 
         [Header("IN_TANK Minimap")]
         [SerializeField] private bool showInTankMinimap = true;
@@ -247,12 +248,18 @@ namespace TankRoyale.Gameplay
 
             if (_mode == InTankMode)
             {
-                if (playerTurret != null)
+                float climbLift = 0f;
+                if (_playerTankController != null)
                 {
-                    return playerTurret.TransformPoint(cockpitLocalOffset);
+                    climbLift = Mathf.Clamp01(_playerTankController.CurrentSlopeAngle / 35f) * inTankClimbLift;
                 }
 
-                return playerTank != null ? playerTank.position + Vector3.up * cockpitLocalOffset.y : transform.position;
+                if (playerTurret != null)
+                {
+                    return playerTurret.TransformPoint(cockpitLocalOffset) + Vector3.up * climbLift;
+                }
+
+                return playerTank != null ? playerTank.position + Vector3.up * (cockpitLocalOffset.y + climbLift) : transform.position;
             }
 
             if (_mode == StareDownMuzzleMode)
