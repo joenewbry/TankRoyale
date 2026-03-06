@@ -22,6 +22,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Color cockpitOverlayColor = new Color(0.2f, 1f, 0.5f, 0.9f);
         [SerializeField] private float overlaySize = 22f;
         [SerializeField] private float overlayThickness = 2f;
+        [SerializeField] [Range(0.05f, 0.25f)] private float cockpitMaskPercent = 0.10f;
+        [SerializeField] private Color cockpitMaskColor = new Color(0f, 0f, 0f, 0.55f);
+        [SerializeField] private bool showTargetArrow = true;
 
         [Header("STARE_DOWN_MUZZLE")]
         [SerializeField] private float muzzleViewDistance = 7f;
@@ -429,11 +432,13 @@ namespace TankRoyale.Gameplay
             float cx = Screen.width * 0.5f;
             float cy = Screen.height * 0.5f;
             Color old = GUI.color;
-            GUI.color = cockpitOverlayColor;
+            DrawCockpitMask();
 
+            GUI.color = cockpitOverlayColor;
             DrawRect(cx - overlaySize * 0.5f, cy - overlayThickness * 0.5f, overlaySize, overlayThickness);
             DrawRect(cx - overlayThickness * 0.5f, cy - overlaySize * 0.5f, overlayThickness, overlaySize);
             DrawTankCockpitFrame();
+            DrawTargetArrow(cx, cy);
             DrawTankCockpitTelemetry();
 
             GUI.color = old;
@@ -484,6 +489,42 @@ namespace TankRoyale.Gameplay
             DrawRect(0f, h - edge, t, edge);
             DrawRect(w - edge, h - t, edge, t);
             DrawRect(w - t, h - edge, t, edge);
+        }
+
+        private void DrawCockpitMask()
+        {
+            float w = Screen.width;
+            float h = Screen.height;
+            float maskX = Mathf.Clamp01(cockpitMaskPercent) * w;
+            float maskY = Mathf.Clamp01(cockpitMaskPercent) * h;
+            Color old = GUI.color;
+            GUI.color = cockpitMaskColor;
+
+            // Occlude a 10% border around the center viewport.
+            DrawRect(0f, 0f, w, maskY);               // Top
+            DrawRect(0f, h - maskY, w, maskY);        // Bottom
+            DrawRect(0f, maskY, maskX, h - 2f * maskY);           // Left
+            DrawRect(w - maskX, maskY, maskX, h - 2f * maskY);    // Right
+
+            GUI.color = old;
+        }
+
+        private void DrawTargetArrow(float cx, float cy)
+        {
+            if (!showTargetArrow)
+            {
+                return;
+            }
+
+            GUIStyle arrowStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 20,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                normal = { textColor = cockpitOverlayColor }
+            };
+
+            GUI.Label(new Rect(cx - 14f, cy - 44f, 28f, 24f), "^", arrowStyle);
         }
 
         private void DrawTankCockpitTelemetry()

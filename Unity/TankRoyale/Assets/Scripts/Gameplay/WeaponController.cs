@@ -25,6 +25,7 @@ namespace TankRoyale.Gameplay
         [Header("Feel")]
         [SerializeField] private float recoilImpulse = 1.6f;
         [SerializeField] private float dualBarrelOffset = 0.28f;
+        [SerializeField] private float muzzleSpawnForwardOffset = 0.12f;
 
         [Header("Audio")]
         [SerializeField] private AudioClip sfxShot;
@@ -97,7 +98,9 @@ namespace TankRoyale.Gameplay
         private void SpawnProjectile(string playerId, float localRightOffset, bool explosiveRounds)
         {
             Transform firePoint = _tankController.FirePoint;
-            Vector3 spawnPos = firePoint.position + (firePoint.right * localRightOffset);
+            Vector3 spawnPos = firePoint.position
+                             + (firePoint.right * localRightOffset)
+                             + (firePoint.forward * muzzleSpawnForwardOffset);
 
             GameObject projectileObject = !forceFallbackSphere && projectilePrefab != null
                 ? Instantiate(projectilePrefab, spawnPos, firePoint.rotation)
@@ -133,6 +136,7 @@ namespace TankRoyale.Gameplay
             if (collider != null)
             {
                 collider.material = GetBouncyProjectileMaterial();
+                IgnoreOwnerCollisions(collider);
             }
 
             Projectile projectileComponent = projectileObject.GetComponent<Projectile>();
@@ -220,6 +224,26 @@ namespace TankRoyale.Gameplay
         private bool IsPowerupActive(string playerId, string powerupKey)
         {
             return powerupManager != null && powerupManager.IsPowerupActive(playerId, powerupKey);
+        }
+
+        private void IgnoreOwnerCollisions(Collider projectileCollider)
+        {
+            if (projectileCollider == null || _tankController == null)
+            {
+                return;
+            }
+
+            Collider[] ownerColliders = _tankController.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < ownerColliders.Length; i++)
+            {
+                Collider ownerCollider = ownerColliders[i];
+                if (ownerCollider == null || ownerCollider == projectileCollider)
+                {
+                    continue;
+                }
+
+                Physics.IgnoreCollision(projectileCollider, ownerCollider, true);
+            }
         }
 
         private void TryPlayShotSfx()
