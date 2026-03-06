@@ -1,0 +1,17 @@
+{
+  "queue_total": 8,
+  "in_progress": [
+    "Tank driving feel + camera/combat debug pass",
+    "Per-iteration PlayTest scene snapshots with each commit"
+  ],
+  "queued": [
+    "Verify tread animation visibility on all player/enemy tank prefabs",
+    "Re-validate shot trajectory against camera angle in all 3 camera modes",
+    "Re-validate ramp climb momentum + sliding/friction behavior after latest control changes",
+    "Polish camera mode UX (Tab indicator + current mode label)",
+    "Add tank-themed HUD polish for in-cockpit feel",
+    "Expand debug menu options (rendering/shader/ray/arc toggles)"
+  ],
+  "done_recent_count": 14,
+  "mode": "auto_drain"
+}
