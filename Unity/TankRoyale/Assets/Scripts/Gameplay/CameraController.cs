@@ -8,7 +8,7 @@ namespace TankRoyale.Gameplay
     {
         private const int TopDownMode = 0;
         private const int ShoulderMode = 1;
-        private const int FrontMode = 2;
+        private const int CockpitMode = 2;
 
         [Header("References")]
         [SerializeField] private Transform playerTank;
@@ -18,12 +18,19 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float topDownHeight = 20f;
         [SerializeField] private float orthoSize = 12f;
 
-        [Header("First Person")]
-        [SerializeField] private float cameraDistance = 3.5f;
-        [SerializeField] private float cameraHeight = 1.75f;
-        [SerializeField] private float cameraForwardOffset = 1.2f;
-        [SerializeField] private float frontCamDistance = 4.5f;
-        [SerializeField] private float frontCamHeight = 1.8f;
+        [Header("Over Shoulder")]
+        [SerializeField] private float shoulderDistance = 2.8f;
+        [SerializeField] private float shoulderHeight = 1.7f;
+        [SerializeField] private float shoulderForwardOffset = 0.9f;
+
+        [Header("Cockpit")]
+        [SerializeField] private Vector3 cockpitLocalOffset = new Vector3(0f, 1.3f, 0.2f);
+        [SerializeField] private bool showCockpitTargetOverlay = true;
+        [SerializeField] private Color cockpitOverlayColor = new Color(0.2f, 1f, 0.5f, 0.9f);
+        [SerializeField] private float overlaySize = 22f;
+        [SerializeField] private float overlayThickness = 2f;
+
+        [Header("Look")]
         [SerializeField] private float mouseLookSensitivity = 2f;
         [SerializeField] private float minPitch = -20f;
         [SerializeField] private float maxPitch = 45f;
@@ -45,12 +52,13 @@ namespace TankRoyale.Gameplay
         private float _yaw;
         private float _pitch = 10f;
         private bool _lookInitialized;
+        private static Texture2D _overlayPixel;
 
         public Vector3 AimForward
         {
             get
             {
-                if (_mode == FrontMode && playerTank != null)
+                if (_mode == TopDownMode && playerTank != null)
                 {
                     return playerTank.forward;
                 }
@@ -169,12 +177,16 @@ namespace TankRoyale.Gameplay
                 return transform.position;
             }
 
-            if (_mode == FrontMode)
+            if (_mode == CockpitMode)
             {
+                if (playerTurret != null)
+                {
+                    return playerTurret.TransformPoint(cockpitLocalOffset);
+                }
+
                 if (playerTank != null)
                 {
-                    Vector3 pivot = playerTank.position + Vector3.up * frontCamHeight;
-                    return pivot + playerTank.forward * frontCamDistance;
+                    return playerTank.position + Vector3.up * cockpitLocalOffset.y;
                 }
 
                 return transform.position;
@@ -184,9 +196,9 @@ namespace TankRoyale.Gameplay
             {
                 Quaternion lookRotation = Quaternion.Euler(_pitch, _yaw, 0f);
                 Vector3 pivot = playerTank.position
-                    + playerTank.forward * cameraForwardOffset
-                    + Vector3.up * cameraHeight;
-                return pivot - (lookRotation * Vector3.forward * cameraDistance);
+                    + playerTank.forward * shoulderForwardOffset
+                    + Vector3.up * shoulderHeight;
+                return pivot - (lookRotation * Vector3.forward * shoulderDistance);
             }
 
             return transform.position;
@@ -194,23 +206,6 @@ namespace TankRoyale.Gameplay
 
         private Quaternion GetFirstPersonRotation()
         {
-            if (_mode == FrontMode)
-            {
-                if (playerTank == null)
-                {
-                    return Quaternion.identity;
-                }
-
-                Vector3 lookTarget = playerTank.position + Vector3.up * (frontCamHeight * 0.6f);
-                Vector3 toTarget = lookTarget - transform.position;
-                if (toTarget.sqrMagnitude <= 0.0001f)
-                {
-                    return Quaternion.identity;
-                }
-
-                return Quaternion.LookRotation(toTarget.normalized, Vector3.up);
-            }
-
             return Quaternion.Euler(_pitch, _yaw, 0f);
         }
 
@@ -254,7 +249,7 @@ namespace TankRoyale.Gameplay
 
         private void HandleMouseLook()
         {
-            if (_mode != ShoulderMode)
+            if (_mode != ShoulderMode && _mode != CockpitMode)
             {
                 if (Cursor.lockState == CursorLockMode.Locked && lockCursorInFirstPerson)
                 {
@@ -280,6 +275,52 @@ namespace TankRoyale.Gameplay
 
             _yaw += yawDelta;
             _pitch = Mathf.Clamp(_pitch + pitchDelta, minPitch, maxPitch);
+        }
+
+        private void OnGUI()
+        {
+            if (_mode != CockpitMode || !showCockpitTargetOverlay)
+            {
+                return;
+            }
+
+            EnsureOverlayPixel();
+
+            float cx = Screen.width * 0.5f;
+            float cy = Screen.height * 0.5f;
+            Color old = GUI.color;
+            GUI.color = cockpitOverlayColor;
+
+            DrawRect(cx - overlaySize * 0.5f, cy - overlayThickness * 0.5f, overlaySize, overlayThickness);
+            DrawRect(cx - overlayThickness * 0.5f, cy - overlaySize * 0.5f, overlayThickness, overlaySize);
+
+            GUI.color = old;
+        }
+
+        private static void EnsureOverlayPixel()
+        {
+            if (_overlayPixel != null)
+            {
+                return;
+            }
+
+            _overlayPixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            _overlayPixel.SetPixel(0, 0, Color.white);
+            _overlayPixel.Apply();
+        }
+
+        private static void DrawRect(float x, float y, float w, float h)
+        {
+            GUI.DrawTexture(new Rect(x, y, w, h), _overlayPixel);
+        }
+
+        private void OnDisable()
+        {
+            if (Cursor.lockState == CursorLockMode.Locked && lockCursorInFirstPerson)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
         }
 
         private void EnsureFillLight()
