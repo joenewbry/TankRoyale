@@ -1,4 +1,5 @@
 using UnityEngine;
+using TankRoyale.Audio;
 
 namespace TankRoyale.Gameplay
 {
@@ -9,7 +10,6 @@ namespace TankRoyale.Gameplay
     [DisallowMultipleComponent]
     public class TankController : MonoBehaviour
     {
-        private static readonly Plane GroundPlane = new Plane(Vector3.up, Vector3.zero);
 
         [Header("Identity")]
         [SerializeField] private string playerId;
@@ -20,27 +20,87 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Transform firePoint;
         [SerializeField] private Camera aimCamera;
 
-        [Header("Movement")]
-        [SerializeField] private float moveSpeed = 5f;
+        [Header("Movement Feel")]
+        [SerializeField] private float moveSpeed = 6f;
+        [SerializeField] private float speedBoostMultiplier = 1.35f;
+        [SerializeField] private float acceleration = 28f;
+        [SerializeField] private float deceleration = 38f;
+        [SerializeField] private float lateralGrip = 10f;         // lower = more drift
+        [SerializeField] private float groundSnapHeight = 0.08f;
+        [SerializeField] private float groundProbeHeight = 1.8f;
+        [SerializeField] private bool invertMovement = false;
+        [SerializeField] private bool useEightWayMovement = true;
+        [SerializeField] private float maxClimbSlopeAngle = 42f;
+        [SerializeField] private float steepSlopeSlideAccel = 6f;
+        [SerializeField] private float minClimbEntrySpeed = 2.6f;
+        [SerializeField] private float slopeDrag = 2.2f;
+        [SerializeField] private float uphillDeceleration = 4.5f;
 
         [Header("Rotation")]
-        [SerializeField] private float rotationSpeed = 360f;
-        [SerializeField] private float turretRotationSpeed = 540f;
+        [SerializeField] private float rotationSpeed = 420f;
+        [SerializeField] private float turretRotationSpeed = 720f;
+
+        [Header("Mouse Turret")]
+        [SerializeField] private float mouseTurretSensitivity = 1.6f;
+        [SerializeField] private float minTurretPitch = -15f;
+        [SerializeField] private float maxTurretPitch = 45f;
+
+        [Header("Camera Feel")]
+        [SerializeField] private bool useMouseForTurretAim = true;
+
+        [Header("Treads")]
+        [SerializeField] private bool animateTreads = true;
+        [SerializeField] private float treadRotationSpeed = 720f;
+        [SerializeField] private bool invertLeftTreadRotation = false;
+        [SerializeField] private bool invertRightTreadRotation = true;
+        [SerializeField] private Vector3 treadSpinAxis = new Vector3(0f, 0f, 1f);
 
         [Header("Health")]
         [SerializeField] private int maxHealth = 3;
 
-        // Requires Rigidbody with: Freeze Rotation X, Y, Z; Use Gravity unchecked; Collision Detection: Continuous
+        // Requires Rigidbody with: Freeze Rotation only (top-down tank feel)
         private Rigidbody _rigidbody;
         private Camera _cachedCamera;
         private Vector2 _moveInput;
         private WeaponController _weaponController;
+        private Vector3 _planarVelocity;
+        private float _groundHeight;
         private int currentHealth;
+
+        private float _turretYaw;
+        private float _turretPitch;
+        private bool _turretAimInitialized;
+        private Transform[] _leftTreads = new Transform[0];
+        private Transform[] _rightTreads = new Transform[0];
 
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
         public int CurrentHealth => currentHealth;
         public int MaxHealth => maxHealth;
+        public Vector3 AimForward
+        {
+            get
+            {
+                if (_cachedCamera == null)
+                {
+                    _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
+                }
+
+                if (_cachedCamera != null)
+                {
+                    CameraController cc = _cachedCamera.GetComponent<CameraController>();
+                    if (cc != null)
+                    {
+                        return cc.AimForward.normalized;
+                    }
+
+                    return _cachedCamera.transform.forward.normalized;
+                }
+
+                Transform basis = tankBody != null ? tankBody : transform;
+                return basis.forward;
+            }
+        }
 
         private void Awake()
         {
@@ -48,47 +108,34 @@ namespace TankRoyale.Gameplay
             if (_rigidbody == null)
             {
                 _rigidbody = gameObject.AddComponent<Rigidbody>();
-                _rigidbody.useGravity = false;
-                _rigidbody.constraints = RigidbodyConstraints.FreezeRotation | RigidbodyConstraints.FreezePositionY;
-                _rigidbody.collisionDetectionMode = CollisionDetectionMode.Continuous;
-                _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
             }
+
+            _rigidbody.useGravity = false;
+            _rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
+            _rigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
+
             _weaponController = GetComponent<WeaponController>();
             _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
-
             currentHealth = Mathf.Max(1, maxHealth);
+            _groundHeight = transform.position.y;
 
             if (string.IsNullOrWhiteSpace(playerId))
             {
                 playerId = gameObject.name;
             }
 
-            if (tankBody == null)
-            {
-                Transform foundBody = transform.Find("TankBody");
-                tankBody = foundBody != null ? foundBody : transform;
-            }
-
-            if (turret == null)
-            {
-                Transform foundTurret = transform.Find("Turret");
-                turret = foundTurret != null ? foundTurret : transform;
-            }
-
-            if (firePoint == null && turret != null)
-            {
-                Transform foundFirePoint = turret.Find("FirePoint");
-                if (foundFirePoint != null)
-                {
-                    firePoint = foundFirePoint;
-                }
-            }
+            tankBody = ResolveBodyTransform();
+            turret = ResolveTurretTransform();
+            firePoint = ResolveFirePointTransform();
+            InitializeTurretAimState();
         }
 
         private void Update()
         {
             ReadMovementInput();
             RotateTurretToMouse();
+            UpdateTreadVisuals();
             HandleFireInput();
         }
 
@@ -98,14 +145,23 @@ namespace TankRoyale.Gameplay
             RotateBodyToMovement();
         }
 
-        public void TakeDamage(int amount)
+        public void TakeDamage(int amount, string attackerPlayerId = null)
         {
             if (!gameObject.activeInHierarchy || amount <= 0) return;
+
             currentHealth = Mathf.Max(0, currentHealth - amount);
             Debug.Log($"[{name}] took {amount} damage — health {currentHealth}/{maxHealth}");
+
             if (currentHealth <= 0)
             {
-                Debug.Log($"[{name}] destroyed");
+                Debug.Log($"[{name}] destroyed (killer: {attackerPlayerId ?? "unknown"})");
+                ExplosionEffect.Spawn(transform.position, scale: 1.5f);
+                AudioManager.Instance?.PlayExplosionSFX();
+
+                // Reset this tank's own streak and report kill before deactivating.
+                KillstreakManager.Instance?.ResetStreak(PlayerId);
+                GameManager.Instance?.NotifyTankDestroyed(this, attackerPlayerId);
+
                 gameObject.SetActive(false);
             }
         }
@@ -118,12 +174,16 @@ namespace TankRoyale.Gameplay
             Debug.Log($"[{name}] healed {currentHealth - prev} HP — health {currentHealth}/{maxHealth}");
         }
 
+        public void ApplyRecoil(float impulse)
+        {
+            if (impulse <= 0f) return;
+            Vector3 recoilDir = tankBody != null ? -tankBody.forward : -transform.forward;
+            _planarVelocity += recoilDir * impulse;
+        }
+
         private void HandleFireInput()
         {
-            if (_weaponController == null)
-            {
-                return;
-            }
+            if (_weaponController == null) return;
 
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
             {
@@ -133,8 +193,33 @@ namespace TankRoyale.Gameplay
 
         private void ReadMovementInput()
         {
-            _moveInput.x = Input.GetAxisRaw("Horizontal");
-            _moveInput.y = Input.GetAxisRaw("Vertical");
+            float x;
+            float y;
+
+            if (useEightWayMovement)
+            {
+                int right = Input.GetKey(KeyCode.D) ? 1 : 0;
+                int left = Input.GetKey(KeyCode.A) ? 1 : 0;
+                int up = Input.GetKey(KeyCode.W) ? 1 : 0;
+                int down = Input.GetKey(KeyCode.S) ? 1 : 0;
+
+                x = right - left;
+                y = up - down;
+            }
+            else
+            {
+                x = Input.GetAxisRaw("Horizontal");
+                y = Input.GetAxisRaw("Vertical");
+            }
+
+            if (invertMovement)
+            {
+                x = -x;
+                y = -y;
+            }
+
+            _moveInput.x = x;
+            _moveInput.y = y;
 
             if (_moveInput.sqrMagnitude > 1f)
             {
@@ -144,53 +229,418 @@ namespace TankRoyale.Gameplay
 
         private void MoveTank()
         {
-            Vector3 moveDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
-            Vector3 targetPosition = _rigidbody.position + moveDirection * (moveSpeed * Time.fixedDeltaTime);
+            float targetSpeed = GetCurrentMoveSpeed();
+            Transform basis = tankBody != null ? tankBody : transform;
+            Vector3 desiredDirection = (basis.right * _moveInput.x) + (basis.forward * _moveInput.y);
+            desiredDirection.y = 0f;
+            if (desiredDirection.sqrMagnitude > 1f)
+            {
+                desiredDirection.Normalize();
+            }
+            Vector3 desiredVelocity = desiredDirection * targetSpeed;
+
+            float accel = desiredVelocity.sqrMagnitude > 0.0001f ? acceleration : deceleration;
+            _planarVelocity = Vector3.MoveTowards(_planarVelocity, desiredVelocity, accel * Time.fixedDeltaTime);
+
+            // Drift control: bleed side-slip in body space.
+            Vector3 localVelocity = basis.InverseTransformDirection(_planarVelocity);
+            localVelocity.x = Mathf.Lerp(localVelocity.x, 0f, lateralGrip * Time.fixedDeltaTime);
+            _planarVelocity = basis.TransformDirection(localVelocity);
+
+            Vector3 projectedPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
+            Vector3 groundNormal;
+            float groundY = SampleGroundHeight(projectedPosition, out groundNormal);
+            float slopeAngle = Vector3.Angle(groundNormal, Vector3.up);
+            float slopeFactor = Mathf.InverseLerp(0f, Mathf.Max(1f, maxClimbSlopeAngle), slopeAngle);
+            Vector3 planarVelocity = new Vector3(_planarVelocity.x, 0f, _planarVelocity.z);
+            float planarSpeed = planarVelocity.magnitude;
+
+            if (slopeAngle <= maxClimbSlopeAngle)
+            {
+                Vector3 uphillDir = Vector3.ProjectOnPlane(Vector3.up, groundNormal).normalized;
+                Vector3 uphillPlanar = new Vector3(uphillDir.x, 0f, uphillDir.z);
+                if (uphillPlanar.sqrMagnitude > 0.0001f)
+                {
+                    uphillPlanar.Normalize();
+                }
+
+                float uphillDot = planarSpeed > 0.001f && uphillPlanar.sqrMagnitude > 0.0001f
+                    ? Vector3.Dot(planarVelocity.normalized, uphillPlanar)
+                    : 0f;
+
+                // Require momentum to climb: low-speed uphill input starts a slide back down.
+                if (uphillDot > 0.15f && planarSpeed < minClimbEntrySpeed)
+                {
+                    Vector3 downhill = uphillPlanar.sqrMagnitude > 0.0001f ? -uphillPlanar : Vector3.zero;
+                    Vector3 slideTarget = downhill * (minClimbEntrySpeed * 0.65f);
+                    _planarVelocity = Vector3.MoveTowards(_planarVelocity, slideTarget, steepSlopeSlideAccel * Time.fixedDeltaTime);
+                }
+                else
+                {
+                    Vector3 slopeAdjusted = Vector3.ProjectOnPlane(_planarVelocity, groundNormal);
+                    _planarVelocity = new Vector3(slopeAdjusted.x, 0f, slopeAdjusted.z);
+
+                    float drag = slopeDrag * (0.35f + slopeFactor);
+                    _planarVelocity *= 1f / (1f + drag * Time.fixedDeltaTime);
+
+                    if (uphillDot > 0f)
+                    {
+                        _planarVelocity -= uphillPlanar * (uphillDot * uphillDeceleration * (0.5f + slopeFactor) * Time.fixedDeltaTime);
+                    }
+                }
+            }
+            else
+            {
+                Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, groundNormal).normalized;
+                _planarVelocity += new Vector3(downhill.x, 0f, downhill.z) * (steepSlopeSlideAccel * Time.fixedDeltaTime);
+            }
+
+            Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
+            targetPosition.y = groundY;
             _rigidbody.MovePosition(targetPosition);
         }
 
         private void RotateBodyToMovement()
         {
-            Vector3 moveDirection = new Vector3(_moveInput.x, 0f, _moveInput.y);
-            if (moveDirection.sqrMagnitude <= 0.0001f)
+            Vector3 moveDirection = _planarVelocity;
+            if (moveDirection.sqrMagnitude <= 0.01f)
             {
                 return;
             }
 
-            Quaternion targetRotation = Quaternion.LookRotation(moveDirection, Vector3.up);
-            tankBody.rotation = Quaternion.RotateTowards(
-                tankBody.rotation,
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection.normalized, Vector3.up);
+            Transform body = tankBody != null ? tankBody : transform;
+            body.rotation = Quaternion.RotateTowards(
+                body.rotation,
                 targetRotation,
                 rotationSpeed * Time.fixedDeltaTime);
         }
 
         private void RotateTurretToMouse()
         {
-            if (_cachedCamera == null || turret == null)
+            if (turret == null)
             {
                 return;
             }
 
-            Ray mouseRay = _cachedCamera.ScreenPointToRay(Input.mousePosition);
-            if (!GroundPlane.Raycast(mouseRay, out float hitDistance))
+            if (!useMouseForTurretAim)
             {
                 return;
             }
 
-            Vector3 hitPoint = mouseRay.GetPoint(hitDistance);
-            Vector3 aimDirection = hitPoint - turret.position;
-            aimDirection.y = 0f;
+            if (!_turretAimInitialized)
+            {
+                InitializeTurretAimState();
+            }
 
-            if (aimDirection.sqrMagnitude <= 0.0001f)
+            if (_cachedCamera == null)
+            {
+                _cachedCamera = aimCamera != null ? aimCamera : Camera.main;
+            }
+
+            Transform basis = tankBody != null ? tankBody : transform;
+            Vector3 lookForward = _cachedCamera != null ? _cachedCamera.transform.forward : basis.forward;
+            CameraController cameraController = _cachedCamera != null ? _cachedCamera.GetComponent<CameraController>() : null;
+            if (cameraController != null)
+            {
+                lookForward = cameraController.AimForward;
+            }
+
+            Vector3 planarAim = Vector3.ProjectOnPlane(lookForward, Vector3.up);
+            if (planarAim.sqrMagnitude <= 0.0001f)
+            {
+                planarAim = basis.forward;
+            }
+
+            planarAim.Normalize();
+
+            float targetYaw = Vector3.SignedAngle(basis.forward, planarAim, Vector3.up);
+            float targetPitch = Mathf.Asin(Mathf.Clamp(lookForward.y, -1f, 1f)) * Mathf.Rad2Deg;
+            targetPitch *= mouseTurretSensitivity;
+            targetPitch = Mathf.Clamp(targetPitch, minTurretPitch, maxTurretPitch);
+
+            _turretYaw = Mathf.MoveTowardsAngle(_turretYaw, targetYaw, turretRotationSpeed * Time.deltaTime);
+            _turretPitch = Mathf.MoveTowards(_turretPitch, targetPitch, turretRotationSpeed * Time.deltaTime);
+
+            Quaternion targetLocal = Quaternion.Euler(_turretPitch, _turretYaw, 0f);
+            Quaternion targetWorld = basis.rotation * targetLocal;
+            turret.rotation = Quaternion.RotateTowards(turret.rotation, targetWorld, turretRotationSpeed * Time.deltaTime);
+        }
+
+        private Transform ResolveBodyTransform()
+        {
+            if (tankBody != null) return tankBody;
+
+            Transform explicitBody = transform.Find("TankBody");
+            if (explicitBody != null) return explicitBody;
+
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                string n = all[i].name.ToLowerInvariant();
+                if (n.Contains("body") || n.Contains("hull") || n.Contains("chassis"))
+                    return all[i];
+            }
+
+            return transform;
+        }
+
+        private Transform ResolveTurretTransform()
+        {
+            if (turret != null) return turret;
+
+            Transform explicitTurret = transform.Find("Turret");
+            if (explicitTurret != null) return explicitTurret;
+
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                string n = all[i].name.ToLowerInvariant();
+                if (n.Contains("turret") || n.Contains("cannon") || n.Contains("gun"))
+                    return all[i];
+            }
+
+            return tankBody != null ? tankBody : transform;
+        }
+
+        private Transform ResolveFirePointTransform()
+        {
+            if (firePoint != null) return firePoint;
+
+            if (turret != null)
+            {
+                Transform explicitFirePoint = turret.Find("FirePoint");
+                if (explicitFirePoint != null) return explicitFirePoint;
+
+                Transform turretMuzzle = FindBestMuzzleFromTurret(turret);
+                if (turretMuzzle != null)
+                {
+                    return turretMuzzle;
+                }
+            }
+
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < all.Length; i++)
+            {
+                string n = all[i].name.ToLowerInvariant();
+                if (n.Contains("firepoint") || n.Contains("muzzle") || n.Contains("barrelend"))
+                    return all[i];
+            }
+
+            // Fallback: synthesize one so firing always works.
+            Transform parent = turret != null ? turret : transform;
+            GameObject go = new GameObject("FirePoint");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(0f, 0.2f, 1.6f);
+            go.transform.localRotation = Quaternion.identity;
+            return go.transform;
+        }
+
+        private Transform FindBestMuzzleFromTurret(Transform turretRoot)
+        {
+            Transform[] all = turretRoot.GetComponentsInChildren<Transform>(true);
+            Transform best = null;
+            float bestScore = float.NegativeInfinity;
+            Vector3 forward = turretRoot.forward;
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t == turretRoot) continue;
+
+                string n = t.name.ToLowerInvariant();
+                bool muzzleNamed = n.Contains("firepoint") || n.Contains("muzzle") || n.Contains("barrel") || n.Contains("cannon");
+                if (!muzzleNamed)
+                {
+                    continue;
+                }
+
+                Vector3 toCandidate = t.position - turretRoot.position;
+                float score = Vector3.Dot(forward, toCandidate) * 10f + toCandidate.magnitude;
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = t;
+                }
+            }
+
+            return best;
+        }
+
+        private void InitializeTurretAimState()
+        {
+            Transform basis = tankBody != null ? tankBody : transform;
+            if (turret == null)
+            {
+                _turretAimInitialized = false;
+                return;
+            }
+
+            Vector3 localEuler = (Quaternion.Inverse(basis.rotation) * turret.rotation).eulerAngles;
+            _turretYaw = NormalizeDegrees(localEuler.y);
+            _turretPitch = NormalizeDegrees(localEuler.x);
+            _turretAimInitialized = true;
+
+            _turretYaw = Mathf.Repeat(_turretYaw, 360f);
+            if (_turretYaw > 180f)
+                _turretYaw -= 360f;
+
+            _turretPitch = Mathf.Clamp(_turretPitch, minTurretPitch, maxTurretPitch);
+        }
+
+        private float NormalizeDegrees(float angle)
+        {
+            angle %= 360f;
+            if (angle > 180f) angle -= 360f;
+            if (angle < -180f) angle += 360f;
+            return angle;
+        }
+
+        private float SampleGroundHeight(Vector3 proposedPosition, out Vector3 normal)
+        {
+            float maxDist = groundProbeHeight * 3f;
+            Vector3 origin = proposedPosition + Vector3.up * groundProbeHeight;
+            normal = Vector3.up;
+            if (DebugVisualSettings.ShowRaycasts)
+            {
+                Debug.DrawRay(origin, Vector3.down * maxDist, Color.cyan, Time.fixedDeltaTime);
+            }
+
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, maxDist, ~0, QueryTriggerInteraction.Ignore);
+            if (hits != null)
+            {
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    RaycastHit hit = hits[i];
+                    if (hit.collider == null || IsSelfCollider(hit.collider))
+                    {
+                        continue;
+                    }
+
+                    _groundHeight = hit.point.y + groundSnapHeight;
+                    normal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
+                    return _groundHeight;
+                }
+            }
+
+            return _groundHeight;
+        }
+
+        private bool IsSelfCollider(Collider collider)
+        {
+            if (collider == null)
+            {
+                return true;
+            }
+
+            Transform colliderTransform = collider.transform;
+            return colliderTransform == transform || colliderTransform.IsChildOf(transform);
+        }
+
+        private float GetCurrentMoveSpeed()
+        {
+            bool hasSpeedBoost = PowerupManager.Instance != null
+                                 && PowerupManager.Instance.IsPowerupActive(PlayerId, PowerupManager.SpeedBoostPowerup);
+            return moveSpeed * (hasSpeedBoost ? speedBoostMultiplier : 1f);
+        }
+
+        private void UpdateTreadVisuals()
+        {
+            if (!animateTreads)
             {
                 return;
             }
 
-            Quaternion targetRotation = Quaternion.LookRotation(aimDirection, Vector3.up);
-            turret.rotation = Quaternion.RotateTowards(
-                turret.rotation,
-                targetRotation,
-                turretRotationSpeed * Time.deltaTime);
+            if ((_leftTreads == null || _leftTreads.Length == 0) && (_rightTreads == null || _rightTreads.Length == 0))
+            {
+                ResolveTreadTransforms();
+            }
+
+            float leftInput = Mathf.Clamp(_moveInput.y - _moveInput.x, -1f, 1f);
+            float rightInput = Mathf.Clamp(_moveInput.y + _moveInput.x, -1f, 1f);
+
+            float leftSpin = leftInput * treadRotationSpeed * Time.deltaTime * (invertLeftTreadRotation ? -1f : 1f);
+            float rightSpin = rightInput * treadRotationSpeed * Time.deltaTime * (invertRightTreadRotation ? -1f : 1f);
+            Vector3 axis = treadSpinAxis.sqrMagnitude > 0.0001f ? treadSpinAxis.normalized : Vector3.forward;
+
+            for (int i = 0; i < _leftTreads.Length; i++)
+            {
+                if (_leftTreads[i] != null) _leftTreads[i].Rotate(axis, leftSpin, Space.Self);
+            }
+
+            for (int i = 0; i < _rightTreads.Length; i++)
+            {
+                if (_rightTreads[i] != null) _rightTreads[i].Rotate(axis, rightSpin, Space.Self);
+            }
+        }
+
+        private void ResolveTreadTransforms()
+        {
+            // Search from tank root (not only body) because many prefabs place tracks as siblings of hull.
+            Transform root = transform;
+            Transform[] all = root.GetComponentsInChildren<Transform>(true);
+            System.Collections.Generic.List<Transform> left = new System.Collections.Generic.List<Transform>(4);
+            System.Collections.Generic.List<Transform> right = new System.Collections.Generic.List<Transform>(4);
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                string n = t.name.ToLowerInvariant();
+                if (!n.Contains("track") && !n.Contains("tread") && !n.Contains("wheel"))
+                {
+                    continue;
+                }
+
+                bool isLeft = n.Contains("left") || n.Contains("_l") || n.Contains(".l");
+                bool isRight = n.Contains("right") || n.Contains("_r") || n.Contains(".r");
+
+                if (!isLeft && !isRight)
+                {
+                    Vector3 localPos = root.InverseTransformPoint(t.position);
+                    isLeft = localPos.x < 0f;
+                    isRight = !isLeft;
+                }
+
+                if (isLeft)
+                {
+                    left.Add(t);
+                }
+                else if (isRight)
+                {
+                    right.Add(t);
+                }
+            }
+
+            _leftTreads = left.ToArray();
+            _rightTreads = right.ToArray();
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            if (!DebugVisualSettings.ShowProjectileArc)
+            {
+                return;
+            }
+
+            WeaponController wc = GetComponent<WeaponController>();
+            if (wc == null || firePoint == null)
+            {
+                return;
+            }
+
+            Vector3 velocity = wc.GetLaunchVelocity(firePoint);
+            Vector3 pos = firePoint.position;
+            Vector3 gravity = Physics.gravity;
+            float dt = 0.1f;
+
+            Gizmos.color = Color.yellow;
+            for (int i = 0; i < 30; i++)
+            {
+                Vector3 next = pos + velocity * dt + 0.5f * gravity * (dt * dt);
+                Gizmos.DrawLine(pos, next);
+                velocity += gravity * dt;
+                pos = next;
+            }
         }
     }
 }
