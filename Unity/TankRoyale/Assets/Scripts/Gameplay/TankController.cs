@@ -100,6 +100,8 @@ namespace TankRoyale.Gameplay
         private float _turretYaw;
         private float _turretPitch;
         private bool _turretAimInitialized;
+        private Renderer[] _allTankRenderers = new Renderer[0];
+        private bool[] _allTankRendererDefaults = new bool[0];
         private Renderer[] _turretRenderers = new Renderer[0];
         private bool[] _turretRendererDefaults = new bool[0];
         private Transform[] _leftTreads = new Transform[0];
@@ -173,6 +175,7 @@ namespace TankRoyale.Gameplay
             turret = ResolveTurretTransform();
             firePoint = ResolveFirePointTransform();
             InitializeTurretAimState();
+            CacheAllTankRenderers();
             CacheTurretRenderers();
             EnsureTrajectoryLine();
         }
@@ -786,7 +789,8 @@ namespace TankRoyale.Gameplay
 
         private void UpdateTurretVisibilityByViewMode()
         {
-            if (_turretRenderers == null || _turretRenderers.Length == 0)
+            if ((_turretRenderers == null || _turretRenderers.Length == 0)
+                && (_allTankRenderers == null || _allTankRenderers.Length == 0))
             {
                 return;
             }
@@ -796,6 +800,18 @@ namespace TankRoyale.Gameplay
             if (cameraController != null && CompareTag("Player"))
             {
                 hideForCockpit = cameraController.IsInTankMode;
+            }
+
+            for (int i = 0; i < _allTankRenderers.Length; i++)
+            {
+                Renderer renderer = _allTankRenderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                bool defaultVisible = i < _allTankRendererDefaults.Length ? _allTankRendererDefaults[i] : true;
+                renderer.enabled = hideForCockpit ? false : defaultVisible;
             }
 
             for (int i = 0; i < _turretRenderers.Length; i++)
@@ -808,6 +824,16 @@ namespace TankRoyale.Gameplay
 
                 bool defaultVisible = i < _turretRendererDefaults.Length ? _turretRendererDefaults[i] : true;
                 renderer.enabled = hideForCockpit ? false : defaultVisible;
+            }
+        }
+
+        private void CacheAllTankRenderers()
+        {
+            _allTankRenderers = GetComponentsInChildren<Renderer>(true);
+            _allTankRendererDefaults = new bool[_allTankRenderers.Length];
+            for (int i = 0; i < _allTankRenderers.Length; i++)
+            {
+                _allTankRendererDefaults[i] = _allTankRenderers[i] != null && _allTankRenderers[i].enabled;
             }
         }
 
