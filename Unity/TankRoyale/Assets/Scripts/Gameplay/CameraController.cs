@@ -67,6 +67,11 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Color fillLightColor = new Color(0.9f, 0.93f, 1f, 1f);
         [SerializeField] private float fillLightIntensity = 0.38f;
         [SerializeField] private Vector3 fillLightEuler = new Vector3(32f, -120f, 0f);
+        [SerializeField] private bool autoCreateSkyCornerLights = true;
+        [SerializeField] private Color skyCornerLightColor = new Color(1f, 0.96f, 0.9f, 1f);
+        [SerializeField] private float skyCornerLightIntensity = 1.65f;
+        [SerializeField] private float skyCornerHeight = 16f;
+        [SerializeField] private float skyCornerRangePadding = 12f;
 
         private Camera _camera;
         private int _mode = InTankMode;
@@ -662,6 +667,7 @@ namespace TankRoyale.Gameplay
         {
             if (!autoCreateFillLight)
             {
+                EnsureSkyCornerLights();
                 return;
             }
 
@@ -687,6 +693,100 @@ namespace TankRoyale.Gameplay
             fill.intensity = fillLightIntensity;
             fill.shadows = LightShadows.None;
             fillGo.transform.rotation = Quaternion.Euler(fillLightEuler);
+
+            EnsureSkyCornerLights();
+        }
+
+        private void EnsureSkyCornerLights()
+        {
+            if (!autoCreateSkyCornerLights)
+            {
+                return;
+            }
+
+            const string rootName = "RuntimeSkyCornerLights";
+            if (GameObject.Find(rootName) != null)
+            {
+                return;
+            }
+
+            Bounds arenaBounds;
+            bool hasBounds = TryGetArenaBounds(out arenaBounds);
+            if (!hasBounds)
+            {
+                Vector3 center = playerTank != null ? playerTank.position : Vector3.zero;
+                arenaBounds = new Bounds(center, new Vector3(60f, 8f, 60f));
+            }
+
+            Vector3 ext = arenaBounds.extents;
+            ext.x = Mathf.Max(ext.x, 18f);
+            ext.z = Mathf.Max(ext.z, 18f);
+            float topY = arenaBounds.max.y + Mathf.Max(6f, skyCornerHeight);
+            float range = Mathf.Max(ext.x, ext.z) * 1.55f + Mathf.Max(0f, skyCornerRangePadding);
+
+            GameObject root = new GameObject(rootName);
+            root.transform.position = arenaBounds.center;
+
+            Vector3[] corners =
+            {
+                new Vector3(arenaBounds.center.x - ext.x, topY, arenaBounds.center.z - ext.z),
+                new Vector3(arenaBounds.center.x - ext.x, topY, arenaBounds.center.z + ext.z),
+                new Vector3(arenaBounds.center.x + ext.x, topY, arenaBounds.center.z - ext.z),
+                new Vector3(arenaBounds.center.x + ext.x, topY, arenaBounds.center.z + ext.z)
+            };
+
+            for (int i = 0; i < corners.Length; i++)
+            {
+                GameObject lightGo = new GameObject("SkyCornerLight_" + i);
+                lightGo.transform.SetParent(root.transform, true);
+                lightGo.transform.position = corners[i];
+
+                Light l = lightGo.AddComponent<Light>();
+                l.type = LightType.Point;
+                l.color = skyCornerLightColor;
+                l.intensity = skyCornerLightIntensity;
+                l.range = range;
+                l.shadows = LightShadows.None;
+            }
+        }
+
+        private static bool TryGetArenaBounds(out Bounds bounds)
+        {
+            Renderer[] renderers = FindObjectsByType<Renderer>(FindObjectsSortMode.None);
+            bounds = default;
+            bool initialized = false;
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer r = renderers[i];
+                if (r == null || !r.enabled || !r.gameObject.activeInHierarchy)
+                {
+                    continue;
+                }
+
+                if (r is ParticleSystemRenderer)
+                {
+                    continue;
+                }
+
+                string n = r.gameObject.name.ToLowerInvariant();
+                if (n.Contains("paintsplat") || n.Contains("trajectoryline"))
+                {
+                    continue;
+                }
+
+                if (!initialized)
+                {
+                    bounds = r.bounds;
+                    initialized = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(r.bounds);
+                }
+            }
+
+            return initialized;
         }
     }
 }
