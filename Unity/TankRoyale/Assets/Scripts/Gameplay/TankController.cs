@@ -887,7 +887,7 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            if (!showTrajectoryLine || _weaponController == null || firePoint == null)
+            if (!showTrajectoryLine || !DebugVisualSettings.ShowTrajectoryLine || _weaponController == null || firePoint == null)
             {
                 _trajectoryLine.enabled = false;
                 return;

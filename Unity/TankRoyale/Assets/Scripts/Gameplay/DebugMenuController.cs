@@ -9,7 +9,11 @@ namespace TankRoyale.Gameplay
         [SerializeField] private KeyCode quickHitboxKey = KeyCode.F2;
         [SerializeField] private KeyCode quickRayKey = KeyCode.F3;
         [SerializeField] private KeyCode quickArcKey = KeyCode.F4;
-        [SerializeField] private Rect menuRect = new Rect(18f, 18f, 320f, 290f);
+        [SerializeField] private KeyCode quickWireframeKey = KeyCode.F5;
+        [SerializeField] private KeyCode quickShadowKey = KeyCode.F6;
+        [SerializeField] private Rect menuRect = new Rect(18f, 18f, 360f, 340f);
+        private ShadowQuality _defaultShadows = ShadowQuality.All;
+        private bool _shadowQualityCached;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDebugMenu()
@@ -46,12 +50,27 @@ namespace TankRoyale.Gameplay
                 DebugVisualSettings.ShowProjectileArc = !DebugVisualSettings.ShowProjectileArc;
             }
 
+            if (Input.GetKeyDown(quickWireframeKey))
+            {
+                DebugVisualSettings.Wireframe = !DebugVisualSettings.Wireframe;
+            }
+
+            if (Input.GetKeyDown(quickShadowKey))
+            {
+                DebugVisualSettings.DisableShadows = !DebugVisualSettings.DisableShadows;
+            }
+
             GL.wireframe = DebugVisualSettings.Wireframe;
+            ApplyShadowDebugState();
         }
 
         private void OnDisable()
         {
             GL.wireframe = false;
+            if (_shadowQualityCached)
+            {
+                QualitySettings.shadows = _defaultShadows;
+            }
         }
 
         private void OnGUI()
@@ -70,8 +89,10 @@ namespace TankRoyale.Gameplay
             DebugVisualSettings.ShowColliderBounds = GUILayout.Toggle(DebugVisualSettings.ShowColliderBounds, "Show Hitboxes / Colliders");
             DebugVisualSettings.ShowRaycasts = GUILayout.Toggle(DebugVisualSettings.ShowRaycasts, "Show Ground / Trace Rays");
             DebugVisualSettings.ShowProjectileArc = GUILayout.Toggle(DebugVisualSettings.ShowProjectileArc, "Show Projectile Arc");
+            DebugVisualSettings.ShowTrajectoryLine = GUILayout.Toggle(DebugVisualSettings.ShowTrajectoryLine, "Show Trajectory Line");
             DebugVisualSettings.ShowBounceNormals = GUILayout.Toggle(DebugVisualSettings.ShowBounceNormals, "Show Bounce Normals");
             DebugVisualSettings.Wireframe = GUILayout.Toggle(DebugVisualSettings.Wireframe, "Wireframe Rendering");
+            DebugVisualSettings.DisableShadows = GUILayout.Toggle(DebugVisualSettings.DisableShadows, "Disable Shadows");
 
             GUILayout.Space(10f);
             GUILayout.Label("Hotkeys");
@@ -79,6 +100,8 @@ namespace TankRoyale.Gameplay
             GUILayout.Label("F2: Hitboxes");
             GUILayout.Label("F3: Rays");
             GUILayout.Label("F4: Arc");
+            GUILayout.Label("F5: Wireframe");
+            GUILayout.Label("F6: Shadows");
             GUILayout.Label("Tab: Cycle Camera (IN_TANK/MUZZLE/TOP/OVERHEAD/WORLD)");
 
             GUI.DragWindow(new Rect(0f, 0f, 5000f, 22f));
@@ -129,6 +152,17 @@ namespace TankRoyale.Gameplay
 
             // Fallback for capsule/mesh/terrain colliders.
             Gizmos.DrawWireCube(collider.bounds.center, collider.bounds.size);
+        }
+
+        private void ApplyShadowDebugState()
+        {
+            if (!_shadowQualityCached)
+            {
+                _defaultShadows = QualitySettings.shadows;
+                _shadowQualityCached = true;
+            }
+
+            QualitySettings.shadows = DebugVisualSettings.DisableShadows ? ShadowQuality.Disable : _defaultShadows;
         }
     }
 }
