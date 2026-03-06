@@ -50,6 +50,7 @@ namespace TankRoyale.Gameplay
 
         [Header("Treads")]
         [SerializeField] private bool animateTreads = true;
+        [SerializeField] private bool useLegacyTreadRotationFallback = false;
         [SerializeField] private float treadMaxSpinSpeed = 900f;
         [SerializeField] private float treadSpinAcceleration = 2800f;
         [SerializeField] private bool invertLeftTreadRotation = false;
@@ -73,6 +74,7 @@ namespace TankRoyale.Gameplay
         private bool _turretAimInitialized;
         private Transform[] _leftTreads = new Transform[0];
         private Transform[] _rightTreads = new Transform[0];
+        private Animator[] _treadAnimators = new Animator[0];
         private float _leftTreadSpinVelocity;
         private float _rightTreadSpinVelocity;
 
@@ -559,6 +561,13 @@ namespace TankRoyale.Gameplay
             float leftInput = Mathf.Clamp(_moveInput.y - _moveInput.x, -1f, 1f);
             float rightInput = Mathf.Clamp(_moveInput.y + _moveInput.x, -1f, 1f);
 
+            UpdateTreadAnimatorParams(leftInput, rightInput);
+
+            if (!useLegacyTreadRotationFallback)
+            {
+                return;
+            }
+
             float leftTarget = leftInput * treadMaxSpinSpeed * (invertLeftTreadRotation ? -1f : 1f);
             float rightTarget = rightInput * treadMaxSpinSpeed * (invertRightTreadRotation ? -1f : 1f);
 
@@ -649,6 +658,70 @@ namespace TankRoyale.Gameplay
 
             _leftTreads = left.ToArray();
             _rightTreads = right.ToArray();
+
+            System.Collections.Generic.List<Animator> animators = new System.Collections.Generic.List<Animator>(8);
+            for (int i = 0; i < all.Length; i++)
+            {
+                Transform t = all[i];
+                if (t == null) continue;
+
+                string n = t.name.ToLowerInvariant();
+                if (!n.Contains("track") && !n.Contains("tread") && !n.Contains("wheel"))
+                {
+                    continue;
+                }
+
+                Animator a = t.GetComponent<Animator>();
+                if (a != null && !animators.Contains(a))
+                {
+                    animators.Add(a);
+                }
+            }
+
+            _treadAnimators = animators.ToArray();
+        }
+
+        private void UpdateTreadAnimatorParams(float leftInput, float rightInput)
+        {
+            if (_treadAnimators == null || _treadAnimators.Length == 0)
+            {
+                return;
+            }
+
+            float throttle = _moveInput.y;
+            float turn = _moveInput.x;
+            float speed = _planarVelocity.magnitude;
+            float leftTrack = leftInput;
+            float rightTrack = rightInput;
+
+            for (int i = 0; i < _treadAnimators.Length; i++)
+            {
+                Animator a = _treadAnimators[i];
+                if (a == null || !a.isActiveAndEnabled) continue;
+
+                // Set common names; only existing params are used.
+                TrySetAnimatorFloat(a, "Throttle", throttle);
+                TrySetAnimatorFloat(a, "Turn", turn);
+                TrySetAnimatorFloat(a, "Speed", speed);
+                TrySetAnimatorFloat(a, "Move", throttle);
+                TrySetAnimatorFloat(a, "LeftTrack", leftTrack);
+                TrySetAnimatorFloat(a, "RightTrack", rightTrack);
+            }
+        }
+
+        private static void TrySetAnimatorFloat(Animator animator, string paramName, float value)
+        {
+            if (animator == null || string.IsNullOrEmpty(paramName)) return;
+
+            AnimatorControllerParameter[] parameters = animator.parameters;
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                if (parameters[i].type == AnimatorControllerParameterType.Float && parameters[i].name == paramName)
+                {
+                    animator.SetFloat(paramName, value);
+                    return;
+                }
+            }
         }
 
         private void OnDrawGizmosSelected()
