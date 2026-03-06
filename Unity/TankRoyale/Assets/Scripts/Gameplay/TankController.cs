@@ -565,14 +565,36 @@ namespace TankRoyale.Gameplay
             float leftTarget = leftInput * treadMaxSpinSpeed * (invertLeftTreadRotation ? -1f : 1f);
             float rightTarget = rightInput * treadMaxSpinSpeed * (invertRightTreadRotation ? -1f : 1f);
 
-            _leftTreadSpinVelocity = Mathf.MoveTowards(
-                _leftTreadSpinVelocity,
-                leftTarget,
-                treadSpinAcceleration * Time.deltaTime);
-            _rightTreadSpinVelocity = Mathf.MoveTowards(
-                _rightTreadSpinVelocity,
-                rightTarget,
-                treadSpinAcceleration * Time.deltaTime);
+            bool leftDirectionFlip = Mathf.Abs(leftTarget) > 0.01f
+                                     && Mathf.Abs(_leftTreadSpinVelocity) > 0.01f
+                                     && Mathf.Sign(leftTarget) != Mathf.Sign(_leftTreadSpinVelocity);
+            bool rightDirectionFlip = Mathf.Abs(rightTarget) > 0.01f
+                                      && Mathf.Abs(_rightTreadSpinVelocity) > 0.01f
+                                      && Mathf.Sign(rightTarget) != Mathf.Sign(_rightTreadSpinVelocity);
+
+            if (leftDirectionFlip)
+            {
+                _leftTreadSpinVelocity = leftTarget;
+            }
+            else
+            {
+                _leftTreadSpinVelocity = Mathf.MoveTowards(
+                    _leftTreadSpinVelocity,
+                    leftTarget,
+                    treadSpinAcceleration * Time.deltaTime);
+            }
+
+            if (rightDirectionFlip)
+            {
+                _rightTreadSpinVelocity = rightTarget;
+            }
+            else
+            {
+                _rightTreadSpinVelocity = Mathf.MoveTowards(
+                    _rightTreadSpinVelocity,
+                    rightTarget,
+                    treadSpinAcceleration * Time.deltaTime);
+            }
 
             float leftSpin = _leftTreadSpinVelocity * Time.deltaTime;
             float rightSpin = _rightTreadSpinVelocity * Time.deltaTime;
