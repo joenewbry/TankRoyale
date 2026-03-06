@@ -572,6 +572,12 @@ namespace TankRoyale.Gameplay
             splatterColor = color;
         }
 
+        public void ConfigureImpactVisuals(bool paintSplatters, bool impactFog)
+        {
+            spawnPaintSplatters = paintSplatters;
+            spawnImpactFog = impactFog;
+        }
+
         private Material GetSplatterMaterial(Color color)
         {
             Shader shader = Shader.Find("Sprites/Default");

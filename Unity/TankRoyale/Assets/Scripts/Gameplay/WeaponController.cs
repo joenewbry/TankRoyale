@@ -24,7 +24,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private GameObject missilePrefab;
         [SerializeField] private bool forceKitWeaponPrefabs = true;
         [SerializeField] private float fireRate = 0.15f;
-        [SerializeField] private float bulletSpeed = 20f;
+        [SerializeField] private float bulletSpeed = 34f;
         [SerializeField] private bool useBallisticArc = false;
         [SerializeField] private bool forceStraightShots = true;
         [SerializeField] [Range(0f, 45f)] private float launchAngleDegrees = 14f;
@@ -45,9 +45,13 @@ namespace TankRoyale.Gameplay
         [SerializeField] private PowerupManager powerupManager;
         [SerializeField] private bool bounceProjectilesByDefault = true;
         [SerializeField] private float missileFireRate = 0.5f;
-        [SerializeField] private float missileSpeed = 14f;
+        [SerializeField] private float missileSpeed = 28f;
         [SerializeField] private int missileCapacity = 8;
         [SerializeField] private bool missilesExplodeOnHit = true;
+        [SerializeField] private bool disableBulletImpactFx = true;
+        [SerializeField] private bool disableMissileImpactFx = true;
+        [SerializeField] private Vector3 shellModelEulerOffset = Vector3.zero;
+        [SerializeField] private Vector3 missileModelEulerOffset = Vector3.zero;
 
         private TankController _tankController;
         private float _nextFireTime;
@@ -171,6 +175,7 @@ namespace TankRoyale.Gameplay
             projectileRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
 
             projectileRigidbody.linearVelocity = GetLaunchVelocity(firePoint);
+            AlignProjectileToVelocity(projectileObject.transform, projectileRigidbody.linearVelocity, shellModelEulerOffset);
 
             Collider collider = projectileObject.GetComponent<Collider>();
             if (collider == null)
@@ -200,6 +205,10 @@ namespace TankRoyale.Gameplay
                 projectileComponent.isBlockBreaker = IsPowerupActive(playerId, PowerupManager.BlockbreakerPowerup);
                 projectileComponent.isExplosive = explosiveRounds;
                 projectileComponent.SetPaintColor(GetRandomPaintColor());
+                if (disableBulletImpactFx)
+                {
+                    projectileComponent.ConfigureImpactVisuals(false, false);
+                }
             }
 
             ApplyProjectileVisualColor(projectileObject, projectileComponent != null ? projectileComponent.PaintColor : GetRandomPaintColor());
@@ -232,6 +241,7 @@ namespace TankRoyale.Gameplay
             rb.mass = 0.14f;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.linearVelocity = GetTargetingLaunchDirection(firePoint != null ? firePoint : transform) * missileSpeed;
+            AlignProjectileToVelocity(missileObject.transform, rb.linearVelocity, missileModelEulerOffset);
 
             Collider collider = missileObject.GetComponent<Collider>();
             if (collider == null)
@@ -259,6 +269,10 @@ namespace TankRoyale.Gameplay
             projectile.isBlockBreaker = false;
             projectile.isExplosive = missilesExplodeOnHit;
             projectile.SetPaintColor(new Color(1f, 0.5f, 0.12f, 1f));
+            if (disableMissileImpactFx)
+            {
+                projectile.ConfigureImpactVisuals(false, false);
+            }
 
             ApplyProjectileVisualColor(missileObject, new Color(1f, 0.6f, 0.2f, 1f));
             _tankController.ApplyRecoil(recoilImpulse * 1.45f);
@@ -536,6 +550,17 @@ namespace TankRoyale.Gameplay
             return null;
         }
 
+        private static void AlignProjectileToVelocity(Transform projectileTransform, Vector3 velocity, Vector3 eulerOffset)
+        {
+            if (projectileTransform == null || velocity.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            Quaternion look = Quaternion.LookRotation(velocity.normalized, Vector3.up);
+            projectileTransform.rotation = look * Quaternion.Euler(eulerOffset);
+        }
+
         private void TryAssignKitWeaponPrefabs()
         {
             if (!forceKitWeaponPrefabs)
@@ -543,11 +568,14 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
+            forceFallbackSphere = false;
+
 #if UNITY_EDITOR
             GameObject shell = AssetDatabase.LoadAssetAtPath<GameObject>(ShellPrefabPath);
             if (shell != null)
             {
                 projectilePrefab = shell;
+                useFallbackSphereWhenPrefabMissing = false;
             }
 
             GameObject missile = AssetDatabase.LoadAssetAtPath<GameObject>(MissilePrefabPath);
