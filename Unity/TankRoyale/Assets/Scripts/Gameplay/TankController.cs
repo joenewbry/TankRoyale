@@ -38,9 +38,10 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float idleBrake = 18f;
         [SerializeField] private float idleStopSpeed = 0.08f;
         [SerializeField] private bool allowPassiveSlopeSlide = false;
-        [SerializeField] private float maxStepHeight = 1.25f;
+        [SerializeField] private float maxStepHeight = 0.65f;
         [SerializeField] private float stepProbeDistance = 1.1f;
         [SerializeField] private float stepLiftSpeed = 8f;
+        [SerializeField] private float maxStepRisePerSecond = 2.6f;
         [SerializeField] private float stepGroundProbePadding = 0.2f;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
         [SerializeField] private float maxSlopeTiltAngle = 18f;
@@ -391,7 +392,10 @@ namespace TankRoyale.Gameplay
             Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
             if (TryGetStepClimbTargetY(basis, throttle, hasThrottleInput, out float stepY))
             {
-                float climbedY = Mathf.MoveTowards(_rigidbody.position.y, stepY, stepLiftSpeed * Time.fixedDeltaTime);
+                float climbDelta = Mathf.Max(0f, stepY - _rigidbody.position.y);
+                float maxRise = Mathf.Max(0.01f, maxStepRisePerSecond) * Time.fixedDeltaTime;
+                float lift = Mathf.Min(climbDelta, maxRise);
+                float climbedY = Mathf.MoveTowards(_rigidbody.position.y, _rigidbody.position.y + lift, stepLiftSpeed * Time.fixedDeltaTime);
                 groundY = Mathf.Max(groundY, climbedY);
             }
 
@@ -426,6 +430,12 @@ namespace TankRoyale.Gameplay
                 return false;
             }
 
+            // Step assist should only engage against near-vertical obstructions in front.
+            if (lowerHit.normal.y > 0.25f)
+            {
+                return false;
+            }
+
             bool upperBlocked = Physics.Raycast(upperOrigin, direction, out RaycastHit upperHit, stepProbeDistance, ~0, QueryTriggerInteraction.Ignore)
                                 && !IsSelfCollider(upperHit.collider);
             if (upperBlocked)
@@ -436,13 +446,19 @@ namespace TankRoyale.Gameplay
             Vector3 probeXZ = _rigidbody.position + direction * (stepProbeDistance + 0.2f);
             Vector3 probeOrigin = probeXZ + Vector3.up * (maxStepHeight + stepGroundProbePadding);
             float downDistance = (maxStepHeight * 2f) + 1.2f;
-            if (!TrySampleGroundFrom(probeOrigin, downDistance, out float sampledY))
+            if (!TrySampleGroundFrom(probeOrigin, downDistance, out float sampledY, out Vector3 sampledNormal))
+            {
+                return false;
+            }
+
+            // Require a climbable landing surface.
+            if (sampledNormal.y < 0.55f)
             {
                 return false;
             }
 
             float climbDelta = sampledY - _rigidbody.position.y;
-            if (climbDelta < 0.03f || climbDelta > (maxStepHeight + 0.25f))
+            if (climbDelta < 0.03f || climbDelta > (maxStepHeight + 0.05f))
             {
                 return false;
             }
@@ -451,9 +467,10 @@ namespace TankRoyale.Gameplay
             return true;
         }
 
-        private bool TrySampleGroundFrom(Vector3 origin, float distance, out float y)
+        private bool TrySampleGroundFrom(Vector3 origin, float distance, out float y, out Vector3 normal)
         {
             y = _groundHeight;
+            normal = Vector3.up;
             RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, Mathf.Max(0.1f, distance), ~0, QueryTriggerInteraction.Ignore);
             if (hits == null || hits.Length == 0)
             {
@@ -474,6 +491,7 @@ namespace TankRoyale.Gameplay
                 {
                     nearest = hit.distance;
                     y = hit.point.y;
+                    normal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
                     found = true;
                 }
             }
@@ -910,6 +928,12 @@ namespace TankRoyale.Gameplay
             ContactPoint contact = collision.GetContact(0);
             Vector3 bounceDir = contact.normal.sqrMagnitude > 0.0001f ? contact.normal.normalized : Vector3.zero;
             if (bounceDir == Vector3.zero)
+            {
+                return;
+            }
+
+            // Ignore ground-ish contacts to avoid fake hop/jitter while climbing slopes/steps.
+            if (bounceDir.y > 0.3f)
             {
                 return;
             }
