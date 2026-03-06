@@ -413,7 +413,20 @@ namespace TankRoyale.Gameplay
                 return launchDirection.normalized;
             }
 
-            Camera cam = GetAimCamera();
+            CameraController cameraController = null;
+            Camera camFromTank = GetAimCamera();
+            if (camFromTank != null)
+            {
+                cameraController = camFromTank.GetComponent<CameraController>();
+            }
+
+            // In TOP/OVERHEAD, lock firing to turret/muzzle forward for deterministic aiming.
+            if (cameraController != null && (cameraController.IsTopOfTankMode || cameraController.IsOverheadMode))
+            {
+                return origin != null ? origin.forward.normalized : launchDirection.normalized;
+            }
+
+            Camera cam = camFromTank;
             if (cam == null)
             {
                 return launchDirection.normalized;

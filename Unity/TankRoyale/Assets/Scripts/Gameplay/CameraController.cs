@@ -93,6 +93,9 @@ namespace TankRoyale.Gameplay
         private static Texture2D _overlayPixel;
         public bool IsInTankMode => _mode == InTankMode;
         public bool IsWorldExplorerMode => _mode == WorldExplorerMode;
+        public bool IsTopOfTankMode => _mode == TopOfTankMode;
+        public bool IsOverheadMode => _mode == OverheadMode;
+        public bool IsStareDownMode => _mode == StareDownMuzzleMode;
 
         public Vector3 AimForward
         {
@@ -263,16 +266,19 @@ namespace TankRoyale.Gameplay
 
             if (_mode == StareDownMuzzleMode)
             {
-                Transform muzzle = GetMuzzleTransform();
-                if (muzzle != null)
+                Vector3 anchor = GetTankAnchorPosition();
+                Vector3 forward = GetStableTankForward();
+                Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+                if (right.sqrMagnitude <= 0.0001f)
                 {
-                    Vector3 anchor = GetTankAnchorPosition();
-                    Vector3 muzzleToAnchor = (anchor - muzzle.position);
-                    Vector3 dir = muzzleToAnchor.sqrMagnitude > 0.001f ? muzzleToAnchor.normalized : -GetStableTankForward();
-                    return muzzle.position - dir * muzzleViewDistance + Vector3.up * muzzleViewHeight;
+                    right = Vector3.right;
                 }
 
-                return GetTankAnchorPosition() + Vector3.up * 2f;
+                // Fixed 45-degree monitor view used to verify muzzle/projectile origin.
+                return anchor
+                    + (Vector3.up * Mathf.Max(2f, muzzleViewDistance * 0.92f))
+                    - (forward * Mathf.Max(2f, muzzleViewDistance * 0.9f))
+                    + (right * 0.35f);
             }
 
             if (_mode == TopOfTankMode)
@@ -330,25 +336,21 @@ namespace TankRoyale.Gameplay
 
             if (_mode == StareDownMuzzleMode)
             {
+                Vector3 lookTarget = GetTankAnchorPosition() + Vector3.up * Mathf.Max(0.8f, muzzleViewHeight);
                 Transform muzzle = GetMuzzleTransform();
                 if (muzzle != null)
                 {
-                    Vector3 camPos = GetTargetPosition();
-                    Vector3 toMuzzle = muzzle.position - camPos;
-                    if (toMuzzle.sqrMagnitude <= 0.0001f)
-                    {
-                        toMuzzle = GetStableTankForward();
-                    }
-
-                    Quaternion baseLook = Quaternion.LookRotation(toMuzzle.normalized, GetCameraUpVector(0.45f));
-                    Quaternion yawRot = Quaternion.AngleAxis(_yaw, Vector3.up);
-                    Vector3 pitchAxis = yawRot * Vector3.right;
-                    Quaternion pitchRot = Quaternion.AngleAxis(_pitch, pitchAxis);
-                    Quaternion final = pitchRot * yawRot * baseLook;
-                    return Quaternion.LookRotation(final * Vector3.forward, GetCameraUpVector(0.45f));
+                    lookTarget = muzzle.position;
                 }
 
-                return playerTank != null ? playerTank.rotation : transform.rotation;
+                Vector3 from = GetTargetPosition();
+                Vector3 to = lookTarget - from;
+                if (to.sqrMagnitude <= 0.0001f)
+                {
+                    to = GetStableTankForward();
+                }
+
+                return Quaternion.LookRotation(to.normalized, GetCameraUpVector(0.35f));
             }
 
             if (_mode == TopOfTankMode)

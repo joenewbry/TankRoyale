@@ -789,6 +789,11 @@ namespace TankRoyale.Gameplay
             CameraController cameraController = _cachedCamera != null ? _cachedCamera.GetComponent<CameraController>() : null;
             if (cameraController != null)
             {
+                if (cameraController.IsWorldExplorerMode)
+                {
+                    return;
+                }
+
                 lookForward = cameraController.AimForward;
             }
 
