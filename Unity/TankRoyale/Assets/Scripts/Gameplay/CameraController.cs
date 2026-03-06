@@ -196,6 +196,11 @@ namespace TankRoyale.Gameplay
         {
             _mode = Mathf.Clamp(newMode, 0, 4);
             ApplyModeSettings();
+            if (_mode == InTankMode)
+            {
+                _yaw = 0f;
+                _pitch = 0f;
+            }
 
             if (_mode == WorldExplorerMode)
             {
@@ -260,15 +265,10 @@ namespace TankRoyale.Gameplay
                 Transform muzzle = GetMuzzleTransform();
                 if (muzzle != null)
                 {
-                    Vector3 muzzleForward = muzzle.forward;
-                    Vector3 tankForward = GetStableTankForward();
-                    if (Vector3.Dot(muzzleForward, tankForward) < 0f)
-                    {
-                        muzzleForward = -muzzleForward;
-                    }
-
                     Vector3 anchor = GetTankAnchorPosition();
-                    return anchor + Vector3.up * muzzleViewHeight - muzzleForward * muzzleViewDistance;
+                    Vector3 muzzleToAnchor = (anchor - muzzle.position);
+                    Vector3 dir = muzzleToAnchor.sqrMagnitude > 0.001f ? muzzleToAnchor.normalized : -GetStableTankForward();
+                    return muzzle.position - dir * muzzleViewDistance + Vector3.up * muzzleViewHeight;
                 }
 
                 return GetTankAnchorPosition() + Vector3.up * 2f;
@@ -332,14 +332,14 @@ namespace TankRoyale.Gameplay
                 Transform muzzle = GetMuzzleTransform();
                 if (muzzle != null)
                 {
-                    Vector3 muzzleForward = muzzle.forward;
-                    Vector3 tankForward = GetStableTankForward();
-                    if (Vector3.Dot(muzzleForward, tankForward) < 0f)
+                    Vector3 camPos = GetTargetPosition();
+                    Vector3 toMuzzle = muzzle.position - camPos;
+                    if (toMuzzle.sqrMagnitude <= 0.0001f)
                     {
-                        muzzleForward = -muzzleForward;
+                        toMuzzle = GetStableTankForward();
                     }
 
-                    Quaternion baseLook = Quaternion.LookRotation(muzzleForward.normalized, GetCameraUpVector(0.45f));
+                    Quaternion baseLook = Quaternion.LookRotation(toMuzzle.normalized, GetCameraUpVector(0.45f));
                     Quaternion yawRot = Quaternion.AngleAxis(_yaw, Vector3.up);
                     Vector3 pitchAxis = yawRot * Vector3.right;
                     Quaternion pitchRot = Quaternion.AngleAxis(_pitch, pitchAxis);
@@ -492,6 +492,15 @@ namespace TankRoyale.Gameplay
 
         private Vector3 GetStableTankForward()
         {
+            if (_playerTankController != null)
+            {
+                Vector3 bodyForward = _playerTankController.CurrentBodyForward;
+                if (bodyForward.sqrMagnitude > 0.0001f)
+                {
+                    return bodyForward.normalized;
+                }
+            }
+
             if (playerTank == null)
             {
                 return transform.forward;
@@ -576,10 +585,6 @@ namespace TankRoyale.Gameplay
             }
 
             Vector3 raw = playerTank.position;
-            if (_playerTankRigidbody != null)
-            {
-                raw = _playerTankRigidbody.worldCenterOfMass;
-            }
 
             if (!_smoothedTankAnchorInitialized)
             {

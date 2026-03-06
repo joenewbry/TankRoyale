@@ -142,6 +142,19 @@ namespace TankRoyale.Gameplay
         public float CurrentSpeed => _planarVelocity.magnitude;
         public float CurrentSlopeAngle => Vector3.Angle(_groundNormal, Vector3.up);
         public Vector3 CurrentGroundNormal => _groundNormal;
+        public Vector3 CurrentBodyForward
+        {
+            get
+            {
+                Transform body = tankBody != null ? tankBody : transform;
+                Vector3 planar = Vector3.ProjectOnPlane(body.forward, Vector3.up);
+                if (planar.sqrMagnitude <= 0.0001f)
+                {
+                    return transform.forward;
+                }
+                return planar.normalized;
+            }
+        }
         public Vector3 CurrentBodyUp
         {
             get
@@ -200,6 +213,12 @@ namespace TankRoyale.Gameplay
             if (string.IsNullOrWhiteSpace(playerId))
             {
                 playerId = gameObject.name;
+            }
+
+            if (CompareTag("Player") && invertMovement)
+            {
+                // Prevent inverted startup controls in first-person playtests.
+                invertMovement = false;
             }
 
             tankBody = ResolveBodyTransform();
@@ -774,7 +793,16 @@ namespace TankRoyale.Gameplay
             _turretPitch = Mathf.MoveTowards(_turretPitch, targetPitch, turretRotationSpeed * Time.deltaTime);
 
             Quaternion targetWorld = Quaternion.Euler(_turretPitch, _turretYaw, 0f);
-            turret.rotation = Quaternion.RotateTowards(turret.rotation, targetWorld, turretRotationSpeed * Time.deltaTime);
+            Transform parent = turret.parent;
+            if (parent != null)
+            {
+                Quaternion targetLocal = Quaternion.Inverse(parent.rotation) * targetWorld;
+                turret.localRotation = Quaternion.RotateTowards(turret.localRotation, targetLocal, turretRotationSpeed * Time.deltaTime);
+            }
+            else
+            {
+                turret.rotation = Quaternion.RotateTowards(turret.rotation, targetWorld, turretRotationSpeed * Time.deltaTime);
+            }
 
             if (logMouseTurretInput && Time.unscaledTime >= _nextMouseLogTime)
             {

@@ -50,8 +50,8 @@ namespace TankRoyale.Gameplay
         [SerializeField] private bool missilesExplodeOnHit = true;
         [SerializeField] private bool disableBulletImpactFx = true;
         [SerializeField] private bool disableMissileImpactFx = true;
-        [SerializeField] private Vector3 shellModelEulerOffset = Vector3.zero;
-        [SerializeField] private Vector3 missileModelEulerOffset = Vector3.zero;
+        [SerializeField] private Vector3 shellModelEulerOffset = new Vector3(-90f, 0f, 0f);
+        [SerializeField] private Vector3 missileModelEulerOffset = new Vector3(-90f, 0f, 0f);
 
         private TankController _tankController;
         private float _nextFireTime;
@@ -204,6 +204,7 @@ namespace TankRoyale.Gameplay
                 projectileComponent.isRicochet = bounceProjectilesByDefault || IsPowerupActive(playerId, PowerupManager.RicochetPowerup);
                 projectileComponent.isBlockBreaker = IsPowerupActive(playerId, PowerupManager.BlockbreakerPowerup);
                 projectileComponent.isExplosive = explosiveRounds;
+                projectileComponent.UseAreaBlockDestruction = false;
                 projectileComponent.SetPaintColor(GetRandomPaintColor());
                 if (disableBulletImpactFx)
                 {
@@ -268,6 +269,7 @@ namespace TankRoyale.Gameplay
             projectile.isRicochet = false;
             projectile.isBlockBreaker = false;
             projectile.isExplosive = missilesExplodeOnHit;
+            projectile.UseAreaBlockDestruction = true;
             projectile.SetPaintColor(new Color(1f, 0.5f, 0.12f, 1f));
             if (disableMissileImpactFx)
             {

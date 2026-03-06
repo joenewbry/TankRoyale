@@ -30,6 +30,7 @@ namespace TankRoyale.Gameplay
         public bool isRicochet;
         public bool isBlockBreaker;
         public bool isExplosive;
+        public bool UseAreaBlockDestruction;
 
         [Header("Shooter")]
         public string shooterPlayerId;   // Set by WeaponController — prevents self-damage
@@ -188,6 +189,14 @@ namespace TankRoyale.Gameplay
 
         private void HandleWorldCollision(Collider hitCollider, Vector3 point, Vector3 normal, GameObject hitObject)
         {
+            if (UseAreaBlockDestruction && IsBreakableWorldBlock(hitObject))
+            {
+                SpawnPaintSplat(point, normal, hitCollider.transform);
+                DestroyBlocksIn3x3x3(point, GetBreakableBlockRoot(hitObject));
+                Destroy(gameObject);
+                return;
+            }
+
             if (breakBlocksOnAnyHit && IsBreakableWorldBlock(hitObject))
             {
                 SpawnPaintSplat(point, normal, hitCollider.transform);
@@ -288,6 +297,66 @@ namespace TankRoyale.Gameplay
                    || n.Contains("Ground_Desert")
                    || n.Contains("Tile_Ground")
                    || n.Contains("Flat_Ground");
+        }
+
+        private void DestroyBlocksIn3x3x3(Vector3 center, GameObject impactRoot)
+        {
+            float cellSize = 1f;
+            if (impactRoot != null)
+            {
+                Renderer rootRenderer = impactRoot.GetComponentInChildren<Renderer>(true);
+                if (rootRenderer != null)
+                {
+                    Vector3 size = rootRenderer.bounds.size;
+                    float maxAxis = Mathf.Max(size.x, size.y, size.z);
+                    if (maxAxis > 0.05f)
+                    {
+                        cellSize = maxAxis;
+                    }
+                }
+            }
+
+            Vector3 half = Vector3.one * (cellSize * 1.5f);
+            Collider[] hits = Physics.OverlapBox(center, half, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+            if (hits == null || hits.Length == 0)
+            {
+                if (impactRoot != null)
+                {
+                    Destroy(impactRoot);
+                }
+                return;
+            }
+
+            System.Collections.Generic.HashSet<GameObject> roots = new System.Collections.Generic.HashSet<GameObject>();
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Collider c = hits[i];
+                if (c == null)
+                {
+                    continue;
+                }
+
+                GameObject candidate = GetBreakableBlockRoot(c.gameObject);
+                if (candidate == null || !IsBreakableWorldBlock(candidate) || IsGroundLike(candidate))
+                {
+                    continue;
+                }
+
+                roots.Add(candidate);
+            }
+
+            foreach (GameObject root in roots)
+            {
+                if (root != null)
+                {
+                    Destroy(root);
+                }
+            }
+
+            if (roots.Count == 0 && impactRoot != null && IsBreakableWorldBlock(impactRoot) && !IsGroundLike(impactRoot))
+            {
+                Destroy(impactRoot);
+            }
         }
 
         private void Ricochet(Vector3 collisionNormal, Vector3 point, Transform hitParent)
