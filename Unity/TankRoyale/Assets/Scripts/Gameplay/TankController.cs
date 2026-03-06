@@ -300,12 +300,14 @@ namespace TankRoyale.Gameplay
                 float uphillDot = planarSpeed > 0.001f && uphillPlanar.sqrMagnitude > 0.0001f
                     ? Vector3.Dot(planarVelocity.normalized, uphillPlanar)
                     : 0f;
+                float requiredClimbSpeed = Mathf.Lerp(minClimbEntrySpeed * 0.65f, minClimbEntrySpeed * 1.35f, slopeFactor);
 
                 // Require momentum to climb: low-speed uphill input starts a slide back down.
-                if (uphillDot > 0.15f && planarSpeed < minClimbEntrySpeed)
+                if (hasThrottleInput && throttle > 0.01f && uphillDot > 0.15f && planarSpeed < requiredClimbSpeed)
                 {
                     Vector3 downhill = uphillPlanar.sqrMagnitude > 0.0001f ? -uphillPlanar : Vector3.zero;
-                    Vector3 slideTarget = downhill * (minClimbEntrySpeed * 0.65f);
+                    float slideTargetSpeed = Mathf.Max(minClimbEntrySpeed * 0.35f, requiredClimbSpeed * 0.5f);
+                    Vector3 slideTarget = downhill * slideTargetSpeed;
                     _planarVelocity = Vector3.MoveTowards(_planarVelocity, slideTarget, steepSlopeSlideAccel * Time.fixedDeltaTime);
                 }
                 else
@@ -334,6 +336,16 @@ namespace TankRoyale.Gameplay
             if (!hasThrottleInput && _planarVelocity.magnitude < idleStopSpeed)
             {
                 _planarVelocity = Vector3.zero;
+            }
+
+            if (!hasThrottleInput && slopeAngle > 2f)
+            {
+                float idleSlopeBrake = idleBrake * (1f + slopeFactor * 2.5f);
+                _planarVelocity = Vector3.MoveTowards(_planarVelocity, Vector3.zero, idleSlopeBrake * Time.fixedDeltaTime);
+                if (_planarVelocity.magnitude < idleStopSpeed * 1.25f)
+                {
+                    _planarVelocity = Vector3.zero;
+                }
             }
 
             Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
