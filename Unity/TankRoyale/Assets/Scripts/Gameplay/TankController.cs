@@ -99,6 +99,8 @@ namespace TankRoyale.Gameplay
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
         public int CurrentHealth => currentHealth;
         public int MaxHealth => maxHealth;
+        public float CurrentSpeed => _planarVelocity.magnitude;
+        public float CurrentSlopeAngle => Vector3.Angle(_groundNormal, Vector3.up);
         public Vector3 AimForward
         {
             get

@@ -433,6 +433,8 @@ namespace TankRoyale.Gameplay
 
             DrawRect(cx - overlaySize * 0.5f, cy - overlayThickness * 0.5f, overlaySize, overlayThickness);
             DrawRect(cx - overlayThickness * 0.5f, cy - overlaySize * 0.5f, overlayThickness, overlaySize);
+            DrawTankCockpitFrame();
+            DrawTankCockpitTelemetry();
 
             GUI.color = old;
         }
@@ -465,6 +467,44 @@ namespace TankRoyale.Gameplay
         private static void DrawRect(float x, float y, float w, float h)
         {
             GUI.DrawTexture(new Rect(x, y, w, h), _overlayPixel);
+        }
+
+        private void DrawTankCockpitFrame()
+        {
+            float w = Screen.width;
+            float h = Screen.height;
+            float edge = Mathf.Min(w, h) * 0.08f;
+            float t = Mathf.Max(1f, overlayThickness);
+
+            DrawRect(0f, 0f, edge, t);
+            DrawRect(0f, 0f, t, edge);
+            DrawRect(w - edge, 0f, edge, t);
+            DrawRect(w - t, 0f, t, edge);
+            DrawRect(0f, h - t, edge, t);
+            DrawRect(0f, h - edge, t, edge);
+            DrawRect(w - edge, h - t, edge, t);
+            DrawRect(w - t, h - edge, t, edge);
+        }
+
+        private void DrawTankCockpitTelemetry()
+        {
+            if (_playerTankController == null)
+            {
+                return;
+            }
+
+            GUIStyle style = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 13,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = cockpitOverlayColor }
+            };
+
+            float speed = _playerTankController.CurrentSpeed;
+            float slope = _playerTankController.CurrentSlopeAngle;
+
+            GUI.Label(new Rect(18f, Screen.height - 56f, 260f, 22f), $"SPD {speed:0.0}", style);
+            GUI.Label(new Rect(18f, Screen.height - 34f, 260f, 22f), $"SLOPE {slope:0.0}°", style);
         }
 
         private void OnDisable()
