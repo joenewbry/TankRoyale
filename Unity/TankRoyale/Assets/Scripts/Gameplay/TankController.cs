@@ -35,6 +35,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float minClimbEntrySpeed = 2.6f;
         [SerializeField] private float slopeDrag = 2.2f;
         [SerializeField] private float uphillDeceleration = 4.5f;
+        [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
+        [SerializeField] private float maxSlopeTiltAngle = 18f;
+        [SerializeField] private float slopeTiltResponsiveness = 12f;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 420f;
@@ -67,6 +70,7 @@ namespace TankRoyale.Gameplay
         private WeaponController _weaponController;
         private Vector3 _planarVelocity;
         private float _groundHeight;
+        private Vector3 _groundNormal = Vector3.up;
         private int currentHealth;
 
         private float _turretYaw;
@@ -256,6 +260,7 @@ namespace TankRoyale.Gameplay
             Vector3 projectedPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
             Vector3 groundNormal;
             float groundY = SampleGroundHeight(projectedPosition, out groundNormal);
+            _groundNormal = groundNormal.sqrMagnitude > 0.0001f ? groundNormal.normalized : Vector3.up;
             float slopeAngle = Vector3.Angle(groundNormal, Vector3.up);
             float slopeFactor = Mathf.InverseLerp(0f, Mathf.Max(1f, maxClimbSlopeAngle), slopeAngle);
             Vector3 planarVelocity = new Vector3(_planarVelocity.x, 0f, _planarVelocity.z);
@@ -309,13 +314,47 @@ namespace TankRoyale.Gameplay
         private void RotateBodyFromTurnInput()
         {
             float turn = _moveInput.x;
-            if (Mathf.Abs(turn) <= 0.001f)
+
+            Transform body = tankBody != null ? tankBody : transform;
+            if (Mathf.Abs(turn) > 0.001f)
+            {
+                body.Rotate(0f, turn * rotationSpeed * Time.fixedDeltaTime, 0f, Space.World);
+            }
+
+            ApplySlopeTilt(body);
+        }
+
+        private void ApplySlopeTilt(Transform body)
+        {
+            if (body == null)
             {
                 return;
             }
 
-            Transform body = tankBody != null ? tankBody : transform;
-            body.Rotate(0f, turn * rotationSpeed * Time.fixedDeltaTime, 0f, Space.World);
+            Vector3 targetNormal = _groundNormal.sqrMagnitude > 0.0001f ? _groundNormal.normalized : Vector3.up;
+            float slopeAngle = Vector3.Angle(Vector3.up, targetNormal);
+            if (slopeAngle > maxSlopeTiltAngle && slopeAngle > 0.001f)
+            {
+                float t = maxSlopeTiltAngle / slopeAngle;
+                targetNormal = Vector3.Slerp(Vector3.up, targetNormal, t);
+            }
+
+            targetNormal = Vector3.Slerp(Vector3.up, targetNormal, Mathf.Clamp01(slopeTiltStrength));
+            Vector3 forwardOnSlope = Vector3.ProjectOnPlane(body.forward, targetNormal);
+            if (forwardOnSlope.sqrMagnitude <= 0.0001f)
+            {
+                forwardOnSlope = Vector3.ProjectOnPlane(transform.forward, targetNormal);
+            }
+            if (forwardOnSlope.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            Quaternion targetRotation = Quaternion.LookRotation(forwardOnSlope.normalized, targetNormal);
+            body.rotation = Quaternion.Slerp(
+                body.rotation,
+                targetRotation,
+                Mathf.Clamp01(slopeTiltResponsiveness * Time.fixedDeltaTime));
         }
 
         private void RotateTurretToMouse()

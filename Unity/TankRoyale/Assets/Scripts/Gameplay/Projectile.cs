@@ -37,12 +37,16 @@ namespace TankRoyale.Gameplay
         private Vector3 _lastBouncePoint;
         private Vector3 _lastBounceNormal;
         private Vector3 _lastBounceOut;
+        private Vector3 _lastPosition;
+        private float _collisionRadius = 0.08f;
+        private bool _positionInitialized;
         private static Material _splatterMaterial;
 
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
             _remainingBounces = Mathf.Max(0, maxBounces);
+            CacheCollisionRadius();
         }
 
         private void Start()
@@ -53,30 +57,79 @@ namespace TankRoyale.Gameplay
 
         private void FixedUpdate()
         {
-            if (_rigidbody != null)
+            if (_rigidbody == null)
             {
-                _lastVelocity = _rigidbody.linearVelocity;
+                return;
             }
+
+            Vector3 currentPosition = _rigidbody.position;
+            if (!_positionInitialized)
+            {
+                _lastPosition = currentPosition;
+                _positionInitialized = true;
+            }
+
+            Vector3 travel = currentPosition - _lastPosition;
+            float distance = travel.magnitude;
+            if (distance > 0.0001f)
+            {
+                RaycastHit hit;
+                if (Physics.SphereCast(_lastPosition, _collisionRadius, travel / distance, out hit, distance, ~0, QueryTriggerInteraction.Ignore))
+                {
+                    if (hit.collider != null && !IsSelfCollider(hit.collider))
+                    {
+                        _rigidbody.position = hit.point - (travel / distance) * Mathf.Max(0.005f, _collisionRadius * 0.2f);
+                        HandleImpact(hit.collider, hit.point, hit.normal);
+                        _lastPosition = _rigidbody.position;
+                        return;
+                    }
+                }
+            }
+
+            _lastVelocity = _rigidbody.linearVelocity;
+            _lastPosition = currentPosition;
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            GameObject hitObject = collision.collider.gameObject;
-
-            if (hitObject.CompareTag("Player") || hitObject.CompareTag("Enemy"))
+            if (collision == null || collision.collider == null)
             {
-                HandleTankCollision(collision);
                 return;
             }
 
-            HandleWorldCollision(collision, hitObject);
+            Vector3 point = transform.position;
+            Vector3 normal = -transform.forward;
+            if (collision.contacts != null && collision.contacts.Length > 0)
+            {
+                point = collision.contacts[0].point;
+                normal = collision.contacts[0].normal;
+            }
+
+            HandleImpact(collision.collider, point, normal);
         }
 
-        private void HandleWorldCollision(Collision collision, GameObject hitObject)
+        private void HandleImpact(Collider hitCollider, Vector3 point, Vector3 normal)
+        {
+            if (hitCollider == null)
+            {
+                return;
+            }
+
+            GameObject hitObject = hitCollider.gameObject;
+            if (hitObject.CompareTag("Player") || hitObject.CompareTag("Enemy"))
+            {
+                HandleTankCollision(hitCollider, point, normal);
+                return;
+            }
+
+            HandleWorldCollision(hitCollider, point, normal, hitObject);
+        }
+
+        private void HandleWorldCollision(Collider hitCollider, Vector3 point, Vector3 normal, GameObject hitObject)
         {
             if (isBlockBreaker && hitObject.CompareTag("Block"))
             {
-                SpawnPaintSplat(collision);
+                SpawnPaintSplat(point, normal, hitCollider.transform);
                 Destroy(hitObject);
 
                 if (_rigidbody != null)
@@ -89,7 +142,7 @@ namespace TankRoyale.Gameplay
 
             if (isExplosive)
             {
-                SpawnPaintSplat(collision);
+                SpawnPaintSplat(point, normal, hitCollider.transform);
                 Explode(transform.position);
                 Destroy(gameObject);
                 return;
@@ -97,15 +150,15 @@ namespace TankRoyale.Gameplay
 
             if (isRicochet)
             {
-                Ricochet(collision);
+                Ricochet(normal, point);
                 return;
             }
 
-            SpawnPaintSplat(collision);
+            SpawnPaintSplat(point, normal, hitCollider.transform);
             Destroy(gameObject);
         }
 
-        private void Ricochet(Collision collision)
+        private void Ricochet(Vector3 collisionNormal, Vector3 point)
         {
             if (_remainingBounces <= 0)
             {
@@ -113,7 +166,11 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            Vector3 collisionNormal = collision.contacts.Length > 0 ? collision.contacts[0].normal : -transform.forward;
+            if (collisionNormal.sqrMagnitude <= 0.0001f)
+            {
+                collisionNormal = -transform.forward;
+            }
+
             Vector3 incoming = _rigidbody != null ? _rigidbody.linearVelocity : _lastVelocity;
             Vector3 reflectedVelocity = Vector3.Reflect(incoming, collisionNormal);
             reflectedVelocity *= 0.9f;
@@ -128,7 +185,7 @@ namespace TankRoyale.Gameplay
                 transform.forward = reflectedVelocity.normalized;
             }
 
-            _lastBouncePoint = collision.contacts.Length > 0 ? collision.contacts[0].point : transform.position;
+            _lastBouncePoint = point;
             _lastBounceNormal = collisionNormal;
             _lastBounceOut = reflectedVelocity.normalized;
 
@@ -145,13 +202,13 @@ namespace TankRoyale.Gameplay
             }
         }
 
-        private void HandleTankCollision(Collision collision)
+        private void HandleTankCollision(Collider hitCollider, Vector3 point, Vector3 normal)
         {
-            GameObject tankObject = collision.collider.gameObject;
+            GameObject tankObject = hitCollider.gameObject;
             TankController hitTank = tankObject.GetComponentInParent<TankController>();
             if (hitTank == null)
             {
-                SpawnPaintSplat(collision);
+                SpawnPaintSplat(point, normal, hitCollider.transform);
                 Destroy(gameObject);
                 return;
             }
@@ -164,14 +221,14 @@ namespace TankRoyale.Gameplay
 
             if (isExplosive)
             {
-                SpawnPaintSplat(collision);
+                SpawnPaintSplat(point, normal, hitCollider.transform);
                 Explode(transform.position);
                 Destroy(gameObject);
                 return;
             }
 
             ApplyDamageToTank(hitTank);
-            SpawnPaintSplat(collision);
+            SpawnPaintSplat(point, normal, hitCollider.transform);
             Destroy(gameObject);
         }
 
@@ -264,6 +321,79 @@ namespace TankRoyale.Gameplay
             }
 
             Destroy(splat, splatterLifetime);
+        }
+
+        private void SpawnPaintSplat(Vector3 point, Vector3 normal, Transform parent)
+        {
+            if (!spawnPaintSplatters)
+            {
+                return;
+            }
+
+            if (normal.sqrMagnitude <= 0.0001f)
+            {
+                normal = Vector3.up;
+            }
+
+            GameObject splat = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            splat.name = "PaintSplat";
+            if (parent != null)
+            {
+                splat.transform.SetParent(parent, true);
+            }
+
+            float size = Random.Range(minSplatterSize, maxSplatterSize);
+            splat.transform.position = point + normal * splatterSurfaceOffset;
+            splat.transform.rotation = Quaternion.LookRotation(normal, Vector3.up) * Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
+            splat.transform.localScale = new Vector3(size, size, size);
+
+            Collider c = splat.GetComponent<Collider>();
+            if (c != null)
+            {
+                Destroy(c);
+            }
+
+            MeshRenderer renderer = splat.GetComponent<MeshRenderer>();
+            if (renderer != null)
+            {
+                renderer.sharedMaterial = GetSplatterMaterial();
+                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+            }
+
+            Destroy(splat, splatterLifetime);
+        }
+
+        private void CacheCollisionRadius()
+        {
+            SphereCollider sphere = GetComponent<SphereCollider>();
+            if (sphere != null)
+            {
+                float scale = Mathf.Max(Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.y), Mathf.Abs(transform.lossyScale.z));
+                _collisionRadius = Mathf.Max(0.04f, sphere.radius * scale);
+                return;
+            }
+
+            CapsuleCollider capsule = GetComponent<CapsuleCollider>();
+            if (capsule != null)
+            {
+                float scale = Mathf.Max(Mathf.Abs(transform.lossyScale.x), Mathf.Abs(transform.lossyScale.y), Mathf.Abs(transform.lossyScale.z));
+                _collisionRadius = Mathf.Max(0.04f, capsule.radius * scale);
+                return;
+            }
+
+            Collider c = GetComponent<Collider>();
+            if (c != null)
+            {
+                _collisionRadius = Mathf.Max(0.04f, c.bounds.extents.magnitude * 0.25f);
+            }
+        }
+
+        private bool IsSelfCollider(Collider collider)
+        {
+            if (collider == null) return true;
+            Transform t = collider.transform;
+            return t == transform || t.IsChildOf(transform);
         }
 
         private Material GetSplatterMaterial()

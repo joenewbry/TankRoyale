@@ -15,6 +15,7 @@ Use this as the live task stack. I will keep it updated and commit incrementally
 - [queued] Expand debug menu options (hitboxes, rendering modes, shader/ray/arc toggles)
 
 ## Done (recent)
+- [done] Added slope body-tilt physics approximation + projectile edge-hit sweep checks + `PlayTest8`
 - [done] Switched treads to animator-driven params (no manual forward/back tread mesh spin) + `PlayTest7`
 - [done] Tank controls switched to throttle+turn (W/S move, A/D rotate) + trajectory flip fix + `PlayTest6`
 - [done] 3-view Tab cycle finalized (TopDown/Shoulder/Cockpit) + cockpit target overlay + `PlayTest5`
