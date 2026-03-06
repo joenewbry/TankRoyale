@@ -68,7 +68,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Vector3 fillLightEuler = new Vector3(32f, -120f, 0f);
 
         private Camera _camera;
-        private int _mode = OverheadMode;
+        private int _mode = InTankMode;
         private float _yaw;
         private float _pitch = 10f;
         private bool _lookInitialized;
@@ -369,14 +369,16 @@ namespace TankRoyale.Gameplay
                 _worldLookInitialized = true;
             }
 
+            bool moveModifierHeld = Input.GetMouseButton(1) || Input.GetMouseButton(2);
             float speed = worldMoveSpeed * (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? worldFastMultiplier : 1f);
 
-            int right = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1 : 0;
-            int left = (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1 : 0;
-            int forward = (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1 : 0;
-            int back = (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1 : 0;
-            int up = (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.PageUp) || Input.GetKey(KeyCode.Space)) ? 1 : 0;
-            int down = (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.PageDown)) ? 1 : 0;
+            // Keep WASD/Arrows available for tank control unless a camera modifier is held.
+            int right = (Input.GetKey(KeyCode.L) ? 1 : 0) + (moveModifierHeld && Input.GetKey(KeyCode.D) ? 1 : 0);
+            int left = (Input.GetKey(KeyCode.J) ? 1 : 0) + (moveModifierHeld && Input.GetKey(KeyCode.A) ? 1 : 0);
+            int forward = (Input.GetKey(KeyCode.I) ? 1 : 0) + (moveModifierHeld && Input.GetKey(KeyCode.W) ? 1 : 0);
+            int back = (Input.GetKey(KeyCode.K) ? 1 : 0) + (moveModifierHeld && Input.GetKey(KeyCode.S) ? 1 : 0);
+            int up = (Input.GetKey(KeyCode.U) ? 1 : 0) + (moveModifierHeld && (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.PageUp)) ? 1 : 0);
+            int down = (Input.GetKey(KeyCode.O) ? 1 : 0) + (moveModifierHeld && (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.PageDown)) ? 1 : 0);
 
             Vector3 move = transform.forward * (forward - back)
                          + transform.right * (right - left)
@@ -389,10 +391,10 @@ namespace TankRoyale.Gameplay
 
             transform.position += move * (speed * Time.deltaTime);
 
-            bool allowLook = Input.GetMouseButton(1) || lockCursorInFirstPerson;
+            bool allowLook = Input.GetMouseButton(1);
             if (allowLook)
             {
-                if (lockCursorInFirstPerson)
+                if (lockCursorInFirstPerson || Input.GetMouseButton(2))
                 {
                     Cursor.lockState = CursorLockMode.Locked;
                     Cursor.visible = false;
