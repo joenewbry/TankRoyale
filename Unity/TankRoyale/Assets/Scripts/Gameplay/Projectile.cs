@@ -187,7 +187,7 @@ namespace TankRoyale.Gameplay
 
             if (isRicochet)
             {
-                Ricochet(normal, point);
+                Ricochet(normal, point, hitCollider.transform);
                 return;
             }
 
@@ -195,10 +195,11 @@ namespace TankRoyale.Gameplay
             Destroy(gameObject);
         }
 
-        private void Ricochet(Vector3 collisionNormal, Vector3 point)
+        private void Ricochet(Vector3 collisionNormal, Vector3 point, Transform hitParent)
         {
             if (_remainingBounces <= 0)
             {
+                SpawnPaintSplat(point, collisionNormal, hitParent);
                 Destroy(gameObject);
                 return;
             }
@@ -211,6 +212,7 @@ namespace TankRoyale.Gameplay
             Vector3 incoming = _rigidbody != null ? _rigidbody.linearVelocity : _lastVelocity;
             Vector3 reflectedVelocity = Vector3.Reflect(incoming, collisionNormal);
             reflectedVelocity *= 0.9f;
+            SpawnPaintSplat(point, collisionNormal, hitParent);
 
             if (_rigidbody != null)
             {

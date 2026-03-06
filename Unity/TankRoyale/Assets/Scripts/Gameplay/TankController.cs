@@ -527,6 +527,12 @@ namespace TankRoyale.Gameplay
                 {
                     return turretMuzzle;
                 }
+
+                Transform generatedFromGeometry = BuildFirePointFromTurretGeometry(turret);
+                if (generatedFromGeometry != null)
+                {
+                    return generatedFromGeometry;
+                }
             }
 
             Transform[] all = GetComponentsInChildren<Transform>(true);
@@ -552,6 +558,7 @@ namespace TankRoyale.Gameplay
             Transform best = null;
             float bestScore = float.NegativeInfinity;
             Vector3 forward = turretRoot.forward;
+            Vector3 origin = turretRoot.position;
 
             for (int i = 0; i < all.Length; i++)
             {
@@ -559,14 +566,23 @@ namespace TankRoyale.Gameplay
                 if (t == turretRoot) continue;
 
                 string n = t.name.ToLowerInvariant();
-                bool muzzleNamed = n.Contains("firepoint") || n.Contains("muzzle") || n.Contains("barrel") || n.Contains("cannon");
+                bool muzzleNamed = n.Contains("firepoint")
+                                   || n.Contains("muzzle")
+                                   || n.Contains("barrelend")
+                                   || n.Contains("barrel_end")
+                                   || n.Contains("barreltip")
+                                   || n.Contains("tip")
+                                   || n.Contains("nozzle");
                 if (!muzzleNamed)
                 {
                     continue;
                 }
 
-                Vector3 toCandidate = t.position - turretRoot.position;
-                float score = Vector3.Dot(forward, toCandidate) * 10f + toCandidate.magnitude;
+                Vector3 toCandidate = t.position - origin;
+                float forwardDist = Vector3.Dot(forward, toCandidate);
+                float lateral = Vector3.Cross(forward, toCandidate).magnitude;
+                float nameBonus = (n.Contains("firepoint") || n.Contains("muzzle")) ? 4f : 0f;
+                float score = (forwardDist * 12f) - (lateral * 3f) + nameBonus;
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -575,6 +591,51 @@ namespace TankRoyale.Gameplay
             }
 
             return best;
+        }
+
+        private Transform BuildFirePointFromTurretGeometry(Transform turretRoot)
+        {
+            if (turretRoot == null)
+            {
+                return null;
+            }
+
+            Renderer[] renderers = turretRoot.GetComponentsInChildren<Renderer>(true);
+            if (renderers == null || renderers.Length == 0)
+            {
+                return null;
+            }
+
+            bool initialized = false;
+            Bounds combined = default;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer r = renderers[i];
+                if (r == null) continue;
+                if (!initialized)
+                {
+                    combined = r.bounds;
+                    initialized = true;
+                }
+                else
+                {
+                    combined.Encapsulate(r.bounds);
+                }
+            }
+
+            if (!initialized)
+            {
+                return null;
+            }
+
+            float forwardExtent = Mathf.Max(0.6f, Vector3.Dot(combined.extents, new Vector3(Mathf.Abs(turretRoot.forward.x), Mathf.Abs(turretRoot.forward.y), Mathf.Abs(turretRoot.forward.z))));
+            Vector3 worldPos = combined.center + turretRoot.forward * (forwardExtent + 0.1f);
+
+            GameObject go = new GameObject("FirePoint");
+            go.transform.SetParent(turretRoot, true);
+            go.transform.position = worldPos;
+            go.transform.rotation = turretRoot.rotation;
+            return go.transform;
         }
 
         private void InitializeTurretAimState()
