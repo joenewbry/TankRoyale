@@ -277,11 +277,18 @@ namespace TankRoyale.Gameplay
             {
                 if (playerTank != null)
                 {
-                    Vector3 anchor = _playerTankRigidbody != null ? _playerTankRigidbody.worldCenterOfMass : playerTank.position;
+                    Vector3 planarForward = GetStableTankForward();
+                    Vector3 planarRight = Vector3.Cross(Vector3.up, planarForward).normalized;
+                    if (planarRight.sqrMagnitude <= 0.0001f)
+                    {
+                        planarRight = Vector3.right;
+                    }
+
+                    Vector3 anchor = playerTank.position;
                     return anchor
-                         + playerTank.right * topOfTankLocalOffset.x
+                         + planarRight * topOfTankLocalOffset.x
                          + Vector3.up * topOfTankLocalOffset.y
-                         + playerTank.forward * topOfTankLocalOffset.z;
+                         + planarForward * topOfTankLocalOffset.z;
                 }
 
                 return transform.position;
@@ -299,7 +306,8 @@ namespace TankRoyale.Gameplay
 
             if (_mode == InTankMode)
             {
-                return Quaternion.Euler(_pitch, _yaw, 0f);
+                Vector3 lookForward = (Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward).normalized;
+                return Quaternion.LookRotation(lookForward, GetCameraUpVector());
             }
 
             if (_mode == StareDownMuzzleMode)
@@ -307,7 +315,7 @@ namespace TankRoyale.Gameplay
                 Transform muzzle = GetMuzzleTransform();
                 if (muzzle != null)
                 {
-                    return Quaternion.LookRotation(muzzle.forward, Vector3.up);
+                    return Quaternion.LookRotation(muzzle.forward, GetCameraUpVector());
                 }
 
                 return playerTank != null ? playerTank.rotation : transform.rotation;
@@ -315,8 +323,10 @@ namespace TankRoyale.Gameplay
 
             if (_mode == TopOfTankMode)
             {
-                float yaw = playerTank != null ? playerTank.eulerAngles.y : transform.eulerAngles.y;
-                return Quaternion.Euler(topOfTankPitch, yaw, 0f);
+                Vector3 forward = GetStableTankForward();
+                float yaw = Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg;
+                Vector3 lookForward = Quaternion.Euler(topOfTankPitch, yaw, 0f) * Vector3.forward;
+                return Quaternion.LookRotation(lookForward.normalized, GetCameraUpVector());
             }
 
             return transform.rotation;
@@ -444,6 +454,37 @@ namespace TankRoyale.Gameplay
             while (p > 180f) p -= 360f;
             while (p < -180f) p += 360f;
             return Mathf.Clamp(p, -89f, 89f);
+        }
+
+        private Vector3 GetStableTankForward()
+        {
+            if (playerTank == null)
+            {
+                return transform.forward;
+            }
+
+            Vector3 planarForward = Vector3.ProjectOnPlane(playerTank.forward, Vector3.up);
+            if (planarForward.sqrMagnitude <= 0.0001f)
+            {
+                planarForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+            }
+            if (planarForward.sqrMagnitude <= 0.0001f)
+            {
+                planarForward = Vector3.forward;
+            }
+
+            return planarForward.normalized;
+        }
+
+        private Vector3 GetCameraUpVector()
+        {
+            if (playerTank == null)
+            {
+                return Vector3.up;
+            }
+
+            Vector3 tankUp = playerTank.up.sqrMagnitude > 0.0001f ? playerTank.up.normalized : Vector3.up;
+            return Vector3.Slerp(Vector3.up, tankUp, 0.75f).normalized;
         }
 
         private void OnGUI()

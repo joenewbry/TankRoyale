@@ -49,8 +49,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float landingBounceFactor = 0.22f;
         [SerializeField] private float maxLandingBounce = 1.8f;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
-        [SerializeField] private float maxSlopeTiltAngle = 18f;
+        [SerializeField] private float maxSlopeTiltAngle = 34f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
+        [SerializeField] private float groundSampleRadius = 0.58f;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 420f;
@@ -79,7 +80,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Vector3 treadSpinAxis = new Vector3(1f, 0f, 0f);
 
         [Header("Trajectory Line")]
-        [SerializeField] private bool showTrajectoryLine = true;
+        [SerializeField] private bool showTrajectoryLine = false;
         [SerializeField] private int trajectorySegments = 24;
         [SerializeField] private float trajectoryStepSeconds = 0.08f;
         [SerializeField] private float trajectoryLineWidth = 0.03f;
@@ -257,7 +258,7 @@ namespace TankRoyale.Gameplay
 
         private void HandleFireInput()
         {
-            if (Input.GetMouseButtonDown(0) && _weaponController != null)
+            if (Input.GetMouseButtonDown(0) && _weaponController != null && !BuildModeController.IsBuildModeActive)
             {
                 _weaponController.Fire();
             }
@@ -920,43 +921,48 @@ namespace TankRoyale.Gameplay
         private float SampleGroundHeight(Vector3 proposedPosition, out Vector3 normal)
         {
             float maxDist = groundProbeHeight * 4f;
-            Vector3 origin = proposedPosition + Vector3.up * groundProbeHeight;
-            normal = Vector3.up;
-            if (DebugVisualSettings.ShowRaycasts)
+            Vector3[] offsets =
             {
-                Debug.DrawRay(origin, Vector3.down * maxDist, Color.cyan, Time.fixedDeltaTime);
-            }
+                Vector3.zero,
+                new Vector3(groundSampleRadius, 0f, 0f),
+                new Vector3(-groundSampleRadius, 0f, 0f),
+                new Vector3(0f, 0f, groundSampleRadius),
+                new Vector3(0f, 0f, -groundSampleRadius)
+            };
 
-            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, maxDist, ~0, QueryTriggerInteraction.Ignore);
-            if (hits != null && hits.Length > 0)
+            float weightedHeight = 0f;
+            float totalWeight = 0f;
+            Vector3 weightedNormal = Vector3.zero;
+            bool foundAny = false;
+
+            for (int i = 0; i < offsets.Length; i++)
             {
-                RaycastHit nearest = default;
-                bool found = false;
-                float nearestDistance = float.MaxValue;
-                for (int i = 0; i < hits.Length; i++)
+                Vector3 origin = proposedPosition + offsets[i] + Vector3.up * groundProbeHeight;
+                if (DebugVisualSettings.ShowRaycasts)
                 {
-                    RaycastHit candidate = hits[i];
-                    if (candidate.collider == null || IsSelfCollider(candidate.collider))
-                    {
-                        continue;
-                    }
-
-                    if (candidate.distance < nearestDistance)
-                    {
-                        nearestDistance = candidate.distance;
-                        nearest = candidate;
-                        found = true;
-                    }
+                    Debug.DrawRay(origin, Vector3.down * maxDist, Color.cyan, Time.fixedDeltaTime);
                 }
 
-                if (found)
+                if (!TrySampleGroundFrom(origin, maxDist, out float sampleY, out Vector3 sampleNormal))
                 {
-                    _groundHeight = nearest.point.y + groundSnapHeight;
-                    normal = nearest.normal.sqrMagnitude > 0.0001f ? nearest.normal.normalized : Vector3.up;
-                    return _groundHeight;
+                    continue;
                 }
+
+                float weight = (i == 0) ? 1.6f : 1f;
+                weightedHeight += sampleY * weight;
+                weightedNormal += sampleNormal * weight;
+                totalWeight += weight;
+                foundAny = true;
             }
 
+            if (!foundAny || totalWeight <= 0.0001f)
+            {
+                normal = _groundNormal.sqrMagnitude > 0.0001f ? _groundNormal : Vector3.up;
+                return _groundHeight;
+            }
+
+            _groundHeight = (weightedHeight / totalWeight) + groundSnapHeight;
+            normal = weightedNormal.sqrMagnitude > 0.0001f ? (weightedNormal / totalWeight).normalized : Vector3.up;
             return _groundHeight;
         }
 

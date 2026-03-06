@@ -188,10 +188,10 @@ namespace TankRoyale.Gameplay
 
         private void HandleWorldCollision(Collider hitCollider, Vector3 point, Vector3 normal, GameObject hitObject)
         {
-            if (breakBlocksOnAnyHit && hitObject.CompareTag("Block"))
+            if (breakBlocksOnAnyHit && IsBreakableWorldBlock(hitObject))
             {
                 SpawnPaintSplat(point, normal, hitCollider.transform);
-                Destroy(hitObject);
+                Destroy(GetBreakableBlockRoot(hitObject));
                 Destroy(gameObject);
                 return;
             }
@@ -225,6 +225,48 @@ namespace TankRoyale.Gameplay
 
             SpawnPaintSplat(point, normal, hitCollider.transform);
             Destroy(gameObject);
+        }
+
+        private static bool IsBreakableWorldBlock(GameObject hitObject)
+        {
+            if (hitObject == null)
+            {
+                return false;
+            }
+
+            if (hitObject.CompareTag("Block"))
+            {
+                return true;
+            }
+
+            string name = hitObject.name;
+            return name.Contains("3D_Tile_Ground")
+                   || name.Contains("Ground_Desert")
+                   || name.Contains("Tile_Ground");
+        }
+
+        private static GameObject GetBreakableBlockRoot(GameObject hitObject)
+        {
+            if (hitObject == null)
+            {
+                return null;
+            }
+
+            Transform t = hitObject.transform;
+            Transform best = t;
+            while (t != null)
+            {
+                if (t.CompareTag("Block")
+                    || t.name.Contains("3D_Tile_Ground")
+                    || t.name.Contains("Ground_Desert")
+                    || t.name.Contains("Tile_Ground"))
+                {
+                    best = t;
+                }
+                t = t.parent;
+            }
+
+            return best != null ? best.gameObject : hitObject;
         }
 
         private void Ricochet(Vector3 collisionNormal, Vector3 point, Transform hitParent)

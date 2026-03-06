@@ -6,8 +6,8 @@ namespace TankRoyale.Gameplay
         public static bool ShowColliderBounds = true;
         public static bool ShowRaycasts;
         public static bool ShowProjectileArc;
-        public static bool ShowTrajectoryLine = true;
-        public static bool ShowBounceNormals = true;
+        public static bool ShowTrajectoryLine;
+        public static bool ShowBounceNormals;
         public static bool Wireframe = true;
         public static bool DisableShadows;
 
@@ -17,8 +17,8 @@ namespace TankRoyale.Gameplay
             ShowColliderBounds = true;
             ShowRaycasts = false;
             ShowProjectileArc = false;
-            ShowTrajectoryLine = true;
-            ShowBounceNormals = true;
+            ShowTrajectoryLine = false;
+            ShowBounceNormals = false;
             Wireframe = true;
             DisableShadows = false;
         }

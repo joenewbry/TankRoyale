@@ -9,6 +9,8 @@ namespace TankRoyale.Gameplay
     [DisallowMultipleComponent]
     public class BuildModeController : MonoBehaviour
     {
+        public static bool IsBuildModeActive { get; private set; }
+
         private struct BuildOption
         {
             public string name;
@@ -18,6 +20,7 @@ namespace TankRoyale.Gameplay
         }
 
         [SerializeField] private KeyCode godModeKey = KeyCode.G;
+        [SerializeField] private KeyCode toggleBuildModeKey = KeyCode.C;
         [SerializeField] private KeyCode rotateBuildKey = KeyCode.R;
         [SerializeField] private float maxBuildDistance = 18f;
         [SerializeField] private float godModeBuildDistance = 85f;
@@ -36,6 +39,7 @@ namespace TankRoyale.Gameplay
         private GameObject _previewInstance;
         private BuildOption? _previewOption;
         private string _previewAssetPath;
+        private bool _buildModeEnabled;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureController()
@@ -81,6 +85,18 @@ namespace TankRoyale.Gameplay
                 Debug.Log($"[Build] GodMode={(GameCheatState.GodModeEnabled ? "ON" : "OFF")}");
             }
 
+            if (Input.GetKeyDown(toggleBuildModeKey))
+            {
+                _buildModeEnabled = !_buildModeEnabled;
+                IsBuildModeActive = _buildModeEnabled;
+            }
+
+            if (!_buildModeEnabled)
+            {
+                DestroyPreview();
+                return;
+            }
+
             float scroll = Input.mouseScrollDelta.y;
             if (Mathf.Abs(scroll) > 0.01f)
             {
@@ -94,7 +110,7 @@ namespace TankRoyale.Gameplay
                 _rotationQuarterTurns = (_rotationQuarterTurns + 1) % 4;
             }
 
-            if (Input.GetMouseButtonDown(1))
+            if (Input.GetMouseButtonDown(0))
             {
                 TryPlaceBlock();
             }
@@ -175,8 +191,9 @@ namespace TankRoyale.Gameplay
             };
 
             string mode = GameCheatState.GodModeEnabled ? "ON" : "OFF";
+            string buildMode = _buildModeEnabled ? "ON" : "OFF";
             GUI.Label(new Rect(12f, 34f, 540f, 22f),
-                $"BUILD: {_options[_selectedIndex].name} (MouseWheel) | Rotate[R] | Place[RMB] | GodMode[G]: {mode}", style);
+                $"BUILD[{buildMode}] C | {_options[_selectedIndex].name} (MouseWheel) | Rotate[R] | Place[LMB] | GodMode[G]: {mode}", style);
         }
 
         private void UpdatePreview()
@@ -254,6 +271,12 @@ namespace TankRoyale.Gameplay
                 Destroy(_previewInstance);
                 _previewInstance = null;
             }
+        }
+
+        private void OnDisable()
+        {
+            IsBuildModeActive = false;
+            DestroyPreview();
         }
 
         private GameObject CreateBlockInstance(BuildOption option)
