@@ -15,6 +15,14 @@ namespace TankRoyale.Gameplay
         private ShadowQuality _defaultShadows = ShadowQuality.All;
         private bool _shadowQualityCached;
 
+        private void Awake()
+        {
+            // Force requested debug defaults at startup (Mac-friendly numeric toggles).
+            DebugVisualSettings.ResetDefaults();
+            GL.wireframe = DebugVisualSettings.Wireframe;
+            ApplyShadowDebugState();
+        }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureDebugMenu()
         {
@@ -96,12 +104,12 @@ namespace TankRoyale.Gameplay
 
             GUILayout.Space(10f);
             GUILayout.Label("Hotkeys");
-            GUILayout.Label("1 : Toggle Menu");
-            GUILayout.Label("2 : Hitboxes");
-            GUILayout.Label("3 : Rays");
-            GUILayout.Label("4 : Arc");
-            GUILayout.Label("5 : Wireframe");
-            GUILayout.Label("6 : Shadows");
+            GUILayout.Label("Toggle Menu (1)");
+            GUILayout.Label("Hitboxes (2)");
+            GUILayout.Label("Rays (3)");
+            GUILayout.Label("Arc (4)");
+            GUILayout.Label("Wireframe (5)");
+            GUILayout.Label("Shadows (6)");
             GUILayout.Label("Tab: Cycle Camera (IN_TANK/MUZZLE/TOP/OVERHEAD/WORLD)");
 
             GUI.DragWindow(new Rect(0f, 0f, 5000f, 22f));
