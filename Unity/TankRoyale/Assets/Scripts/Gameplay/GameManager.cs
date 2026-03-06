@@ -274,6 +274,7 @@ namespace TankRoyale.Gameplay
             _gameOver = false;
             DebugVisualSettings.ResetDefaults();
             TargetCactusSettings.ResetDefaults();
+            GameCheatState.ResetDefaults();
             GL.wireframe = false;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }

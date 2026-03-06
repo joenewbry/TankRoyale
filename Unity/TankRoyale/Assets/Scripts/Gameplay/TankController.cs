@@ -204,6 +204,7 @@ namespace TankRoyale.Gameplay
         public void TakeDamage(int amount, string attackerPlayerId = null)
         {
             if (!gameObject.activeInHierarchy || amount <= 0) return;
+            if (GameCheatState.GodModeEnabled && CompareTag("Player")) return;
 
             currentHealth = Mathf.Max(0, currentHealth - amount);
             Debug.Log($"[{name}] took {amount} damage — health {currentHealth}/{maxHealth}");
