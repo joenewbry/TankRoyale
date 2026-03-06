@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace TankRoyale.Gameplay
 {
     /// <summary>
@@ -8,11 +12,17 @@ namespace TankRoyale.Gameplay
     /// </summary>
     public class HUDManager : MonoBehaviour
     {
+        private const string FontPrefabFolder = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Asset/Font";
+
         [Header("HUD Settings")]
         [SerializeField] private Color healthFull = new Color(0.15f, 0.85f, 0.2f);
         [SerializeField] private Color healthMid = new Color(0.95f, 0.8f, 0.05f);
         [SerializeField] private Color healthLow = new Color(0.9f, 0.15f, 0.1f);
         [SerializeField] private Color hudBackground = new Color(0f, 0f, 0f, 0.55f);
+        [SerializeField] private bool use3DFontAmmoCounter = true;
+        [SerializeField] private Vector3 ammo3DLocalOffset = new Vector3(0f, -0.35f, 1.8f);
+        [SerializeField] private float ammo3DScale = 0.06f;
+        [SerializeField] private float ammo3DCharSpacing = 0.62f;
 
         // Runtime
         private TankController _playerTank;
@@ -28,6 +38,9 @@ namespace TankRoyale.Gameplay
         private WeaponController _weaponController;
 
         private Canvas _hud;
+        private Camera _mainCamera;
+        private Transform _ammo3DRoot;
+        private string _lastAmmo3DText = string.Empty;
 
         private void Start()
         {
@@ -38,8 +51,10 @@ namespace TankRoyale.Gameplay
                 _playerMaxHealth = _playerTank != null ? _playerTank.MaxHealth : 3;
                 _weaponController = playerGO.GetComponent<WeaponController>();
             }
+            _mainCamera = Camera.main;
 
             BuildHUD();
+            BuildAmmo3DCounter();
 
             if (GameManager.Instance != null)
             {
@@ -81,6 +96,8 @@ namespace TankRoyale.Gameplay
             {
                 _upgradePopupText.enabled = Time.time < _popupHideAt;
             }
+
+            UpdateAmmo3DCounter();
         }
 
         // ── Build ─────────────────────────────────────────────────────────────
@@ -280,6 +297,130 @@ namespace TankRoyale.Gameplay
             }
 
             _ammoText.text = $"BULLET[LMB] INF   MISSILE[RMB] {_weaponController.MissilesRemaining}/{_weaponController.MissileCapacity}";
+        }
+
+        private void BuildAmmo3DCounter()
+        {
+            if (!use3DFontAmmoCounter)
+            {
+                return;
+            }
+
+            if (_mainCamera == null)
+            {
+                _mainCamera = Camera.main;
+            }
+
+            if (_mainCamera == null)
+            {
+                return;
+            }
+
+            GameObject root = new GameObject("Ammo3DFontCounter");
+            _ammo3DRoot = root.transform;
+            _ammo3DRoot.SetParent(_mainCamera.transform, false);
+            _ammo3DRoot.localPosition = ammo3DLocalOffset;
+            _ammo3DRoot.localRotation = Quaternion.identity;
+            _ammo3DRoot.localScale = Vector3.one * Mathf.Max(0.005f, ammo3DScale);
+            _lastAmmo3DText = string.Empty;
+        }
+
+        private void UpdateAmmo3DCounter()
+        {
+            if (!use3DFontAmmoCounter || _ammo3DRoot == null)
+            {
+                return;
+            }
+
+            if (_weaponController == null && _playerTank != null)
+            {
+                _weaponController = _playerTank.GetComponent<WeaponController>();
+            }
+
+            string text = _weaponController == null
+                ? "BULLET INF MISSILE 0 OF 0"
+                : $"BULLET INF MISSILE {_weaponController.MissilesRemaining} OF {_weaponController.MissileCapacity}";
+
+            if (text == _lastAmmo3DText)
+            {
+                return;
+            }
+
+            _lastAmmo3DText = text;
+            RebuildAmmo3DText(text);
+        }
+
+        private void RebuildAmmo3DText(string text)
+        {
+            if (_ammo3DRoot == null)
+            {
+                return;
+            }
+
+            for (int i = _ammo3DRoot.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_ammo3DRoot.GetChild(i).gameObject);
+            }
+
+            float x = 0f;
+            string upper = (text ?? string.Empty).ToUpperInvariant();
+            for (int i = 0; i < upper.Length; i++)
+            {
+                char c = upper[i];
+                if (c == ' ')
+                {
+                    x += ammo3DCharSpacing * 0.75f;
+                    continue;
+                }
+
+                GameObject glyph = CreateFontGlyph(c);
+                if (glyph == null)
+                {
+                    x += ammo3DCharSpacing;
+                    continue;
+                }
+
+                glyph.transform.SetParent(_ammo3DRoot, false);
+                glyph.transform.localPosition = new Vector3(x, 0f, 0f);
+                glyph.transform.localRotation = Quaternion.identity;
+                x += ammo3DCharSpacing;
+            }
+
+            float center = x * 0.5f;
+            for (int i = 0; i < _ammo3DRoot.childCount; i++)
+            {
+                Transform child = _ammo3DRoot.GetChild(i);
+                Vector3 p = child.localPosition;
+                p.x -= center;
+                child.localPosition = p;
+            }
+        }
+
+        private static GameObject CreateFontGlyph(char c)
+        {
+#if UNITY_EDITOR
+            string path = null;
+            if (c >= 'A' && c <= 'Z')
+            {
+                path = $"{FontPrefabFolder}/Font_Letter_{c}_01.prefab";
+            }
+            else if (c >= '0' && c <= '9')
+            {
+                path = $"{FontPrefabFolder}/Font_Number_{c}_01.prefab";
+            }
+
+            if (string.IsNullOrEmpty(path))
+            {
+                return null;
+            }
+
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (prefab != null)
+            {
+                return Instantiate(prefab);
+            }
+#endif
+            return null;
         }
 
         private void HandleStreakChanged(string playerId, int streak)

@@ -2,6 +2,10 @@ using System;
 using System.Reflection;
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace TankRoyale.Gameplay
 {
     /// <summary>
@@ -12,9 +16,13 @@ namespace TankRoyale.Gameplay
     // RequireComponent removed for editor-script compatibility
     public class WeaponController : MonoBehaviour
     {
+        private const string ShellPrefabPath = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Asset/Weapon/Weapon_Tank_Shell_01.prefab";
+        private const string MissilePrefabPath = "Assets/AssetHunts!/GameDev Starter Kit - Tanks/Asset/Weapon/Weapon_Missile_02.prefab";
+
         [Header("Projectile")]
         [SerializeField] private GameObject projectilePrefab;
         [SerializeField] private GameObject missilePrefab;
+        [SerializeField] private bool forceKitWeaponPrefabs = true;
         [SerializeField] private float fireRate = 0.15f;
         [SerializeField] private float bulletSpeed = 20f;
         [SerializeField] private bool useBallisticArc = false;
@@ -56,6 +64,7 @@ namespace TankRoyale.Gameplay
 
         private void Awake()
         {
+            TryAssignKitWeaponPrefabs();
             _tankController = GetComponent<TankController>();
             _missilesRemaining = Mathf.Max(0, missileCapacity);
 
@@ -525,6 +534,28 @@ namespace TankRoyale.Gameplay
             }
 
             return null;
+        }
+
+        private void TryAssignKitWeaponPrefabs()
+        {
+            if (!forceKitWeaponPrefabs)
+            {
+                return;
+            }
+
+#if UNITY_EDITOR
+            GameObject shell = AssetDatabase.LoadAssetAtPath<GameObject>(ShellPrefabPath);
+            if (shell != null)
+            {
+                projectilePrefab = shell;
+            }
+
+            GameObject missile = AssetDatabase.LoadAssetAtPath<GameObject>(MissilePrefabPath);
+            if (missile != null)
+            {
+                missilePrefab = missile;
+            }
+#endif
         }
     }
 }

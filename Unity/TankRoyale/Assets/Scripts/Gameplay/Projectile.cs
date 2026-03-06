@@ -234,15 +234,19 @@ namespace TankRoyale.Gameplay
                 return false;
             }
 
+            if (IsGroundLike(hitObject))
+            {
+                return false;
+            }
+
             if (hitObject.CompareTag("Block"))
             {
                 return true;
             }
 
             string name = hitObject.name;
-            return name.Contains("3D_Tile_Ground")
-                   || name.Contains("Ground_Desert")
-                   || name.Contains("Tile_Ground");
+            return name.Contains("BuildBlock_")
+                   || name.Contains("TargetCactus");
         }
 
         private static GameObject GetBreakableBlockRoot(GameObject hitObject)
@@ -257,16 +261,33 @@ namespace TankRoyale.Gameplay
             while (t != null)
             {
                 if (t.CompareTag("Block")
-                    || t.name.Contains("3D_Tile_Ground")
-                    || t.name.Contains("Ground_Desert")
-                    || t.name.Contains("Tile_Ground"))
+                    || t.name.Contains("BuildBlock_")
+                    || t.name.Contains("TargetCactus"))
                 {
+                    if (IsGroundLike(t.gameObject))
+                    {
+                        break;
+                    }
                     best = t;
                 }
                 t = t.parent;
             }
 
             return best != null ? best.gameObject : hitObject;
+        }
+
+        private static bool IsGroundLike(GameObject obj)
+        {
+            if (obj == null)
+            {
+                return false;
+            }
+
+            string n = obj.name;
+            return n.Contains("3D_Tile_Ground")
+                   || n.Contains("Ground_Desert")
+                   || n.Contains("Tile_Ground")
+                   || n.Contains("Flat_Ground");
         }
 
         private void Ricochet(Vector3 collisionNormal, Vector3 point, Transform hitParent)
