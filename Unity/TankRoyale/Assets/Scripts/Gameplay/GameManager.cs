@@ -17,6 +17,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float gameOverDelay = 1.5f;
         [SerializeField] private string mainMenuScene = "MainMenu";
         [SerializeField] private KeyCode resetHotkey = KeyCode.R;
+        [SerializeField] private bool resetHotkeyResetsPlayerPosition = true;
 
         // Runtime references (found on Start)
         private TankController _playerTank;
@@ -30,6 +31,9 @@ namespace TankRoyale.Gameplay
         private Text _lossText;
 
         private bool _gameOver;
+        private Vector3 _playerSpawnPosition;
+        private Quaternion _playerSpawnRotation;
+        private bool _playerSpawnCached;
 
         public bool GameOver => _gameOver;
         public int EnemiesRemaining
@@ -63,6 +67,7 @@ namespace TankRoyale.Gameplay
             // Find tanks by tag
             var playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null) _playerTank = playerObj.GetComponent<TankController>();
+            CachePlayerSpawn();
 
             foreach (var go in GameObject.FindGameObjectsWithTag("Enemy"))
             {
@@ -80,8 +85,27 @@ namespace TankRoyale.Gameplay
         {
             if (resetHotkey != KeyCode.None && Input.GetKeyDown(resetHotkey))
             {
-                RestartGame();
+                if (resetHotkeyResetsPlayerPosition)
+                {
+                    ResetPlayerToSpawn();
+                }
+                else
+                {
+                    RestartGame();
+                }
             }
+        }
+
+        private void CachePlayerSpawn()
+        {
+            if (_playerTank == null)
+            {
+                return;
+            }
+
+            _playerSpawnPosition = _playerTank.transform.position;
+            _playerSpawnRotation = _playerTank.transform.rotation;
+            _playerSpawnCached = true;
         }
 
         private void EnsureCoreSystems()
@@ -252,6 +276,48 @@ namespace TankRoyale.Gameplay
             TargetCactusSettings.ResetDefaults();
             GL.wireframe = false;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+
+        public void ResetPlayerToSpawn()
+        {
+            if (_playerTank == null)
+            {
+                GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+                if (playerObj != null)
+                {
+                    _playerTank = playerObj.GetComponent<TankController>();
+                }
+            }
+
+            if (_playerTank == null)
+            {
+                return;
+            }
+
+            if (!_playerSpawnCached)
+            {
+                CachePlayerSpawn();
+            }
+
+            if (!_playerSpawnCached)
+            {
+                return;
+            }
+
+            if (!_playerTank.gameObject.activeSelf)
+            {
+                _playerTank.gameObject.SetActive(true);
+            }
+
+            Transform t = _playerTank.transform;
+            t.SetPositionAndRotation(_playerSpawnPosition, _playerSpawnRotation);
+
+            Rigidbody rb = _playerTank.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
         }
 
         public void GoToMainMenu()
