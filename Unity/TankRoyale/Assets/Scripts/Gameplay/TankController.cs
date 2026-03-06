@@ -50,10 +50,11 @@ namespace TankRoyale.Gameplay
 
         [Header("Treads")]
         [SerializeField] private bool animateTreads = true;
-        [SerializeField] private float treadRotationSpeed = 720f;
+        [SerializeField] private float treadMaxSpinSpeed = 900f;
+        [SerializeField] private float treadSpinAcceleration = 2800f;
         [SerializeField] private bool invertLeftTreadRotation = false;
         [SerializeField] private bool invertRightTreadRotation = true;
-        [SerializeField] private Vector3 treadSpinAxis = new Vector3(0f, 0f, 1f);
+        [SerializeField] private Vector3 treadSpinAxis = new Vector3(1f, 0f, 0f);
 
         [Header("Health")]
         [SerializeField] private int maxHealth = 3;
@@ -72,6 +73,8 @@ namespace TankRoyale.Gameplay
         private bool _turretAimInitialized;
         private Transform[] _leftTreads = new Transform[0];
         private Transform[] _rightTreads = new Transform[0];
+        private float _leftTreadSpinVelocity;
+        private float _rightTreadSpinVelocity;
 
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
@@ -559,8 +562,20 @@ namespace TankRoyale.Gameplay
             float leftInput = Mathf.Clamp(_moveInput.y - _moveInput.x, -1f, 1f);
             float rightInput = Mathf.Clamp(_moveInput.y + _moveInput.x, -1f, 1f);
 
-            float leftSpin = leftInput * treadRotationSpeed * Time.deltaTime * (invertLeftTreadRotation ? -1f : 1f);
-            float rightSpin = rightInput * treadRotationSpeed * Time.deltaTime * (invertRightTreadRotation ? -1f : 1f);
+            float leftTarget = leftInput * treadMaxSpinSpeed * (invertLeftTreadRotation ? -1f : 1f);
+            float rightTarget = rightInput * treadMaxSpinSpeed * (invertRightTreadRotation ? -1f : 1f);
+
+            _leftTreadSpinVelocity = Mathf.MoveTowards(
+                _leftTreadSpinVelocity,
+                leftTarget,
+                treadSpinAcceleration * Time.deltaTime);
+            _rightTreadSpinVelocity = Mathf.MoveTowards(
+                _rightTreadSpinVelocity,
+                rightTarget,
+                treadSpinAcceleration * Time.deltaTime);
+
+            float leftSpin = _leftTreadSpinVelocity * Time.deltaTime;
+            float rightSpin = _rightTreadSpinVelocity * Time.deltaTime;
             Vector3 axis = treadSpinAxis.sqrMagnitude > 0.0001f ? treadSpinAxis.normalized : Vector3.forward;
 
             for (int i = 0; i < _leftTreads.Length; i++)
