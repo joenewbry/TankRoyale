@@ -16,7 +16,7 @@ namespace TankRoyale.Gameplay
         [Header("Game Settings")]
         [SerializeField] private float gameOverDelay = 1.5f;
         [SerializeField] private string mainMenuScene = "MainMenu";
-        [SerializeField] private KeyCode resetHotkey = KeyCode.R;
+        [SerializeField] private KeyCode resetHotkey = KeyCode.B;
         [SerializeField] private bool resetHotkeyResetsPlayerPosition = true;
         [SerializeField] private string playerSpawnMarkerName = "Prop_Tank_Spawn_01";
         [SerializeField] private float playerSpawnYOffset = 0.8f;
@@ -64,6 +64,12 @@ namespace TankRoyale.Gameplay
 
         private void Start()
         {
+            if (resetHotkey == KeyCode.R)
+            {
+                // Keep R free for build rotation.
+                resetHotkey = KeyCode.B;
+            }
+
             EnsureCoreSystems();
 
             // Find tanks by tag

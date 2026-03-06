@@ -43,9 +43,11 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float stepLiftSpeed = 8f;
         [SerializeField] private float maxStepRisePerSecond = 2.6f;
         [SerializeField] private float stepGroundProbePadding = 0.2f;
-        [SerializeField] private float jumpImpulse = 4.2f;
+        [SerializeField] private float jumpImpulse = 8.4f;
         [SerializeField] private float jumpGravity = 12.5f;
         [SerializeField] private float jumpCooldown = 0.2f;
+        [SerializeField] private float landingBounceFactor = 0.22f;
+        [SerializeField] private float maxLandingBounce = 1.8f;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
         [SerializeField] private float maxSlopeTiltAngle = 18f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
@@ -120,6 +122,7 @@ namespace TankRoyale.Gameplay
         private float _jumpOffset;
         private bool _jumpRequested;
         private float _lastJumpTime = -999f;
+        private bool _wasGrounded = true;
 
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
@@ -432,12 +435,25 @@ namespace TankRoyale.Gameplay
                 }
             }
 
+            // Springy landing: convert some downward impact into a small rebound.
+            if (!_wasGrounded && grounded && _jumpVelocity < -0.25f)
+            {
+                float rebound = Mathf.Min(maxLandingBounce, -_jumpVelocity * Mathf.Max(0f, landingBounceFactor));
+                if (rebound > 0.05f)
+                {
+                    _jumpVelocity = rebound;
+                    _jumpOffset = Mathf.Max(_jumpOffset, 0.01f);
+                    grounded = false;
+                }
+            }
+
             targetPosition.y = groundY;
             if (_jumpOffset > 0f)
             {
                 targetPosition.y += _jumpOffset;
             }
             _rigidbody.MovePosition(targetPosition);
+            _wasGrounded = grounded;
         }
 
         private bool TryGetStepClimbTargetY(Transform basis, float throttle, bool hasThrottleInput, out float targetY)
@@ -1328,7 +1344,7 @@ namespace TankRoyale.Gameplay
 
             Vector3 velocity = wc.GetLaunchVelocity(firePoint);
             Vector3 pos = wc.GetProjectileSpawnPosition(firePoint);
-            Vector3 gravity = Physics.gravity;
+            Vector3 gravity = wc.UseBallisticArc ? Physics.gravity : Vector3.zero;
             float dt = 0.1f;
 
             Gizmos.color = Color.yellow;

@@ -17,6 +17,7 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float fireRate = 0.15f;
         [SerializeField] private float bulletSpeed = 20f;
         [SerializeField] private bool useBallisticArc = false;
+        [SerializeField] private bool forceStraightShots = true;
         [SerializeField] [Range(0f, 45f)] private float launchAngleDegrees = 14f;
         [SerializeField] private float fallbackSphereScale = 0.2f;
         [SerializeField] private bool useFallbackSphereWhenPrefabMissing = true;
@@ -41,7 +42,7 @@ namespace TankRoyale.Gameplay
         private Camera _cachedAimCamera;
 
         public float BulletSpeed => bulletSpeed;
-        public bool UseBallisticArc => useBallisticArc;
+        public bool UseBallisticArc => useBallisticArc && !forceStraightShots;
         public float LaunchAngleDegrees => launchAngleDegrees;
 
         private void Awake()
@@ -118,7 +119,7 @@ namespace TankRoyale.Gameplay
             }
 
             projectileRigidbody.isKinematic = false;
-            projectileRigidbody.useGravity = useBallisticArc;
+            projectileRigidbody.useGravity = UseBallisticArc;
             projectileRigidbody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             projectileRigidbody.mass = 0.08f;
             projectileRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
@@ -204,7 +205,7 @@ namespace TankRoyale.Gameplay
 
             Vector3 launchDirection = GetTargetingLaunchDirection(origin);
 
-            if (useBallisticArc)
+            if (UseBallisticArc)
             {
                 // Positive pitch should bias upward from current aim.
                 Vector3 pitchAxis = Vector3.Cross(Vector3.up, launchDirection);

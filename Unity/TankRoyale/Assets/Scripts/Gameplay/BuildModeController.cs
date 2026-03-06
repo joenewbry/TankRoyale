@@ -21,11 +21,13 @@ namespace TankRoyale.Gameplay
         [SerializeField] private KeyCode rotateBuildKey = KeyCode.R;
         [SerializeField] private float maxBuildDistance = 18f;
         [SerializeField] private float godModeBuildDistance = 85f;
-        [SerializeField] private float gridSize = 1f;
+        [SerializeField] private float gridSize = 2f;
+        [SerializeField] private float verticalGridStep = 1f;
         [SerializeField] private bool snapToGrid = true;
         [SerializeField] private bool showBuildHud = true;
         [SerializeField] private float previewAlpha = 0.35f;
         [SerializeField] private float normalSurfaceOffset = 0.02f;
+        [SerializeField] private bool ensurePlacedBlockColliders = true;
 
         private int _selectedIndex;
         private Transform _playerTank;
@@ -137,9 +139,9 @@ namespace TankRoyale.Gameplay
             Quaternion rotation = GetPlacementRotation(hit.normal);
 
             Vector3 position = hit.point + hit.normal * normalSurfaceOffset;
-            if (snapToGrid && gridSize > 0.01f)
+            if (snapToGrid)
             {
-                position = Snap(position, gridSize);
+                position = Snap(position, Mathf.Max(0.01f, gridSize), Mathf.Max(0.01f, verticalGridStep));
             }
 
             GameObject block = CreateBlockInstance(option);
@@ -153,6 +155,7 @@ namespace TankRoyale.Gameplay
             block.transform.localScale = Vector3.Scale(block.transform.localScale, option.scaleMultiplier);
 
             try { block.tag = "Block"; } catch { }
+            EnsureBlockColliders(block);
 
             ApplyColorToRenderers(block, option.color, 1f);
         }
@@ -205,9 +208,9 @@ namespace TankRoyale.Gameplay
 
             Quaternion rotation = GetPlacementRotation(hit.normal);
             Vector3 position = hit.point + hit.normal * normalSurfaceOffset;
-            if (snapToGrid && gridSize > 0.01f)
+            if (snapToGrid)
             {
-                position = Snap(position, gridSize);
+                position = Snap(position, Mathf.Max(0.01f, gridSize), Mathf.Max(0.01f, verticalGridStep));
             }
 
             _previewInstance.transform.SetPositionAndRotation(position, rotation);
@@ -326,12 +329,63 @@ namespace TankRoyale.Gameplay
             }
         }
 
-        private static Vector3 Snap(Vector3 value, float step)
+        private void EnsureBlockColliders(GameObject block)
+        {
+            if (!ensurePlacedBlockColliders || block == null)
+            {
+                return;
+            }
+
+            Collider[] existing = block.GetComponentsInChildren<Collider>(true);
+            if (existing != null && existing.Length > 0)
+            {
+                for (int i = 0; i < existing.Length; i++)
+                {
+                    if (existing[i] != null)
+                    {
+                        existing[i].enabled = true;
+                    }
+                }
+                return;
+            }
+
+            MeshFilter[] meshes = block.GetComponentsInChildren<MeshFilter>(true);
+            bool addedAny = false;
+            for (int i = 0; i < meshes.Length; i++)
+            {
+                MeshFilter mf = meshes[i];
+                if (mf == null || mf.sharedMesh == null)
+                {
+                    continue;
+                }
+
+                MeshCollider mc = mf.gameObject.GetComponent<MeshCollider>();
+                if (mc == null)
+                {
+                    mc = mf.gameObject.AddComponent<MeshCollider>();
+                }
+
+                mc.sharedMesh = mf.sharedMesh;
+                mc.convex = false;
+                addedAny = true;
+            }
+
+            if (!addedAny)
+            {
+                BoxCollider fallback = block.GetComponent<BoxCollider>();
+                if (fallback == null)
+                {
+                    block.AddComponent<BoxCollider>();
+                }
+            }
+        }
+
+        private static Vector3 Snap(Vector3 value, float horizontalStep, float verticalStep)
         {
             return new Vector3(
-                Mathf.Round(value.x / step) * step,
-                Mathf.Round(value.y / step) * step,
-                Mathf.Round(value.z / step) * step);
+                Mathf.Round(value.x / horizontalStep) * horizontalStep,
+                Mathf.Round(value.y / verticalStep) * verticalStep,
+                Mathf.Round(value.z / horizontalStep) * horizontalStep);
         }
     }
 }
