@@ -38,6 +38,10 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float idleBrake = 18f;
         [SerializeField] private float idleStopSpeed = 0.08f;
         [SerializeField] private bool allowPassiveSlopeSlide = false;
+        [SerializeField] private float maxStepHeight = 1.25f;
+        [SerializeField] private float stepProbeDistance = 1.1f;
+        [SerializeField] private float stepLiftSpeed = 8f;
+        [SerializeField] private float stepGroundProbePadding = 0.2f;
         [SerializeField] [Range(0f, 1f)] private float slopeTiltStrength = 0.85f;
         [SerializeField] private float maxSlopeTiltAngle = 18f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
@@ -376,8 +380,96 @@ namespace TankRoyale.Gameplay
             }
 
             Vector3 targetPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
+            if (TryGetStepClimbTargetY(basis, throttle, hasThrottleInput, out float stepY))
+            {
+                float climbedY = Mathf.MoveTowards(_rigidbody.position.y, stepY, stepLiftSpeed * Time.fixedDeltaTime);
+                groundY = Mathf.Max(groundY, climbedY);
+            }
+
             targetPosition.y = groundY;
             _rigidbody.MovePosition(targetPosition);
+        }
+
+        private bool TryGetStepClimbTargetY(Transform basis, float throttle, bool hasThrottleInput, out float targetY)
+        {
+            targetY = _rigidbody.position.y;
+            if (!hasThrottleInput || throttle <= 0.1f || basis == null || maxStepHeight <= 0.01f || stepProbeDistance <= 0.01f)
+            {
+                return false;
+            }
+
+            Vector3 direction = basis.forward;
+            direction.y = 0f;
+            if (direction.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+            direction.Normalize();
+
+            float lowerHeight = groundSnapHeight + 0.06f;
+            Vector3 lowerOrigin = _rigidbody.position + Vector3.up * lowerHeight;
+            Vector3 upperOrigin = lowerOrigin + Vector3.up * Mathf.Max(0.1f, maxStepHeight);
+
+            bool lowerBlocked = Physics.Raycast(lowerOrigin, direction, out RaycastHit lowerHit, stepProbeDistance, ~0, QueryTriggerInteraction.Ignore)
+                                && !IsSelfCollider(lowerHit.collider);
+            if (!lowerBlocked)
+            {
+                return false;
+            }
+
+            bool upperBlocked = Physics.Raycast(upperOrigin, direction, out RaycastHit upperHit, stepProbeDistance, ~0, QueryTriggerInteraction.Ignore)
+                                && !IsSelfCollider(upperHit.collider);
+            if (upperBlocked)
+            {
+                return false;
+            }
+
+            Vector3 probeXZ = _rigidbody.position + direction * (stepProbeDistance + 0.2f);
+            Vector3 probeOrigin = probeXZ + Vector3.up * (maxStepHeight + stepGroundProbePadding);
+            float downDistance = (maxStepHeight * 2f) + 1.2f;
+            if (!TrySampleGroundFrom(probeOrigin, downDistance, out float sampledY))
+            {
+                return false;
+            }
+
+            float climbDelta = sampledY - _rigidbody.position.y;
+            if (climbDelta < 0.03f || climbDelta > (maxStepHeight + 0.25f))
+            {
+                return false;
+            }
+
+            targetY = sampledY + groundSnapHeight;
+            return true;
+        }
+
+        private bool TrySampleGroundFrom(Vector3 origin, float distance, out float y)
+        {
+            y = _groundHeight;
+            RaycastHit[] hits = Physics.RaycastAll(origin, Vector3.down, Mathf.Max(0.1f, distance), ~0, QueryTriggerInteraction.Ignore);
+            if (hits == null || hits.Length == 0)
+            {
+                return false;
+            }
+
+            float nearest = float.MaxValue;
+            bool found = false;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                RaycastHit hit = hits[i];
+                if (hit.collider == null || IsSelfCollider(hit.collider))
+                {
+                    continue;
+                }
+
+                if (hit.distance < nearest)
+                {
+                    nearest = hit.distance;
+                    y = hit.point.y;
+                    found = true;
+                }
+            }
+
+            return found;
         }
 
         private void RotateBodyFromTurnInput()

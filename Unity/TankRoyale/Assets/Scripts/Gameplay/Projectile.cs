@@ -21,6 +21,7 @@ namespace TankRoyale.Gameplay
 
         [Header("Explosive")]
         [SerializeField] private float explosionRadius = 2.4f;
+        [SerializeField] private bool breakBlocksOnAnyHit = true;
 
         [Header("Runtime Powerup Flags")]
         public bool isRicochet;
@@ -164,6 +165,14 @@ namespace TankRoyale.Gameplay
 
         private void HandleWorldCollision(Collider hitCollider, Vector3 point, Vector3 normal, GameObject hitObject)
         {
+            if (breakBlocksOnAnyHit && hitObject.CompareTag("Block"))
+            {
+                SpawnPaintSplat(point, normal, hitCollider.transform);
+                Destroy(hitObject);
+                Destroy(gameObject);
+                return;
+            }
+
             if (isBlockBreaker && hitObject.CompareTag("Block"))
             {
                 SpawnPaintSplat(point, normal, hitCollider.transform);
