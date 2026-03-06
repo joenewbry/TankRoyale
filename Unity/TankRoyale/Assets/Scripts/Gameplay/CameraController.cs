@@ -6,35 +6,45 @@ namespace TankRoyale.Gameplay
     [RequireComponent(typeof(Camera))]
     public class CameraController : MonoBehaviour
     {
-        private const int TopDownMode = 0;
-        private const int ShoulderMode = 1;
-        private const int CockpitMode = 2;
+        private const int InTankMode = 0;
+        private const int StareDownMuzzleMode = 1;
+        private const int TopOfTankMode = 2;
+        private const int OverheadMode = 3;
+        private const int WorldExplorerMode = 4;
 
         [Header("References")]
         [SerializeField] private Transform playerTank;
         [SerializeField] private Transform playerTurret;
 
-        [Header("Top Down")]
-        [SerializeField] private float topDownHeight = 20f;
-        [SerializeField] private float orthoSize = 12f;
-
-        [Header("Over Shoulder")]
-        [SerializeField] private float shoulderDistance = 2.8f;
-        [SerializeField] private float shoulderHeight = 1.7f;
-        [SerializeField] private float shoulderForwardOffset = 0.9f;
-
-        [Header("Cockpit")]
+        [Header("IN_TANK")]
         [SerializeField] private Vector3 cockpitLocalOffset = new Vector3(0f, 1.3f, 0.2f);
         [SerializeField] private bool showCockpitTargetOverlay = true;
         [SerializeField] private Color cockpitOverlayColor = new Color(0.2f, 1f, 0.5f, 0.9f);
         [SerializeField] private float overlaySize = 22f;
         [SerializeField] private float overlayThickness = 2f;
 
+        [Header("STARE_DOWN_MUZZLE")]
+        [SerializeField] private float muzzleViewDistance = 7f;
+        [SerializeField] private float muzzleViewHeight = 0.45f;
+
+        [Header("TOP_OF_TANK")]
+        [SerializeField] private Vector3 topOfTankLocalOffset = new Vector3(0f, 2.4f, -0.2f);
+        [SerializeField] private float topOfTankPitch = 75f;
+
+        [Header("OVERHEAD_VIEW")]
+        [SerializeField] private float overheadHeight = 20f;
+        [SerializeField] private float overheadOrthoSize = 12f;
+
         [Header("Look")]
         [SerializeField] private float mouseLookSensitivity = 2f;
         [SerializeField] private float minPitch = -20f;
         [SerializeField] private float maxPitch = 45f;
         [SerializeField] private bool lockCursorInFirstPerson = true;
+
+        [Header("WORLD_EXPLORER")]
+        [SerializeField] private float worldMoveSpeed = 16f;
+        [SerializeField] private float worldFastMultiplier = 2f;
+        [SerializeField] private float worldLookSensitivity = 2f;
 
         [Header("Follow")]
         [SerializeField] private float followSpeed = 8f;
@@ -48,22 +58,40 @@ namespace TankRoyale.Gameplay
         [SerializeField] private Vector3 fillLightEuler = new Vector3(32f, -120f, 0f);
 
         private Camera _camera;
-        private int _mode = ShoulderMode;
+        private int _mode = OverheadMode;
         private float _yaw;
         private float _pitch = 10f;
         private bool _lookInitialized;
+
+        private float _worldYaw;
+        private float _worldPitch;
+        private bool _worldLookInitialized;
+
+        private TankController _playerTankController;
+
         private static Texture2D _overlayPixel;
 
         public Vector3 AimForward
         {
             get
             {
-                if (_mode == TopDownMode && playerTank != null)
+                if (_mode == InTankMode)
                 {
-                    return playerTank.forward;
+                    return Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward;
                 }
 
-                return Quaternion.Euler(_pitch, _yaw, 0f) * Vector3.forward;
+                if (_mode == WorldExplorerMode)
+                {
+                    return transform.forward;
+                }
+
+                Transform muzzle = GetMuzzleTransform();
+                if (muzzle != null)
+                {
+                    return muzzle.forward;
+                }
+
+                return playerTank != null ? playerTank.forward : transform.forward;
             }
         }
 
@@ -81,31 +109,26 @@ namespace TankRoyale.Gameplay
         {
             if (allowModeToggle && switchKey != KeyCode.None && Input.GetKeyDown(switchKey))
             {
-                _mode = (_mode + 1) % 3;
-                ApplyModeSettings();
+                SetMode((_mode + 1) % 5);
+            }
+
+            ResolveReferences();
+
+            if (_mode == WorldExplorerMode)
+            {
+                HandleWorldExplorerInput();
+                return;
             }
 
             HandleMouseLook();
 
-            if (playerTank == null || (_mode == ShoulderMode && playerTurret == null))
-            {
-                ResolveReferences();
-            }
-
             Vector3 targetPosition = GetTargetPosition();
-            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * followSpeed);
+            Quaternion targetRotation = GetTargetRotation();
 
-            if (_mode == TopDownMode)
+            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * followSpeed);
+            if (targetRotation != Quaternion.identity)
             {
-                transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            }
-            else
-            {
-                Quaternion targetRotation = GetFirstPersonRotation();
-                if (targetRotation != Quaternion.identity)
-                {
-                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * followSpeed);
-                }
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * followSpeed);
             }
         }
 
@@ -117,16 +140,19 @@ namespace TankRoyale.Gameplay
                 if (playerObject != null)
                 {
                     playerTank = playerObject.transform;
+                    _playerTankController = playerObject.GetComponent<TankController>();
                 }
+            }
+
+            if (_playerTankController == null && playerTank != null)
+            {
+                _playerTankController = playerTank.GetComponent<TankController>();
             }
 
             if (playerTurret == null && playerTank != null)
             {
                 Transform foundTurret = playerTank.Find("Turret");
-                if (foundTurret == null)
-                {
-                    foundTurret = playerTank.Find("turret");
-                }
+                if (foundTurret == null) foundTurret = playerTank.Find("turret");
 
                 if (foundTurret == null)
                 {
@@ -146,6 +172,27 @@ namespace TankRoyale.Gameplay
             }
         }
 
+        private void SetMode(int newMode)
+        {
+            _mode = Mathf.Clamp(newMode, 0, 4);
+            ApplyModeSettings();
+
+            if (_mode == WorldExplorerMode)
+            {
+                _worldYaw = transform.eulerAngles.y;
+                _worldPitch = NormalizePitch(transform.eulerAngles.x);
+                _worldLookInitialized = true;
+            }
+            else
+            {
+                if (Cursor.lockState == CursorLockMode.Locked && lockCursorInFirstPerson)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+            }
+        }
+
         private void ApplyModeSettings()
         {
             if (_camera == null)
@@ -153,10 +200,10 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            if (_mode == TopDownMode)
+            if (_mode == OverheadMode)
             {
                 _camera.orthographic = true;
-                _camera.orthographicSize = orthoSize;
+                _camera.orthographicSize = overheadOrthoSize;
             }
             else
             {
@@ -167,63 +214,94 @@ namespace TankRoyale.Gameplay
 
         private Vector3 GetTargetPosition()
         {
-            if (_mode == TopDownMode)
+            if (_mode == OverheadMode)
             {
-                if (playerTank != null)
-                {
-                    return playerTank.position + Vector3.up * topDownHeight;
-                }
-
-                return transform.position;
+                return playerTank != null ? playerTank.position + Vector3.up * overheadHeight : transform.position;
             }
 
-            if (_mode == CockpitMode)
+            if (_mode == InTankMode)
             {
                 if (playerTurret != null)
                 {
                     return playerTurret.TransformPoint(cockpitLocalOffset);
                 }
 
+                return playerTank != null ? playerTank.position + Vector3.up * cockpitLocalOffset.y : transform.position;
+            }
+
+            if (_mode == StareDownMuzzleMode)
+            {
+                Transform muzzle = GetMuzzleTransform();
+                if (muzzle != null)
+                {
+                    return muzzle.position - muzzle.forward * muzzleViewDistance + Vector3.up * muzzleViewHeight;
+                }
+
+                return playerTank != null ? playerTank.position + Vector3.up * 2f : transform.position;
+            }
+
+            if (_mode == TopOfTankMode)
+            {
                 if (playerTank != null)
                 {
-                    return playerTank.position + Vector3.up * cockpitLocalOffset.y;
+                    return playerTank.TransformPoint(topOfTankLocalOffset);
                 }
 
                 return transform.position;
             }
 
-            if (playerTank != null)
-            {
-                Quaternion lookRotation = Quaternion.Euler(_pitch, _yaw, 0f);
-                Vector3 pivot = playerTank.position
-                    + playerTank.forward * shoulderForwardOffset
-                    + Vector3.up * shoulderHeight;
-                return pivot - (lookRotation * Vector3.forward * shoulderDistance);
-            }
-
             return transform.position;
         }
 
-        private Quaternion GetFirstPersonRotation()
+        private Quaternion GetTargetRotation()
         {
-            return Quaternion.Euler(_pitch, _yaw, 0f);
+            if (_mode == OverheadMode)
+            {
+                return Quaternion.Euler(90f, 0f, 0f);
+            }
+
+            if (_mode == InTankMode)
+            {
+                return Quaternion.Euler(_pitch, _yaw, 0f);
+            }
+
+            if (_mode == StareDownMuzzleMode)
+            {
+                Transform muzzle = GetMuzzleTransform();
+                if (muzzle != null)
+                {
+                    return Quaternion.LookRotation(muzzle.forward, Vector3.up);
+                }
+
+                return playerTank != null ? playerTank.rotation : transform.rotation;
+            }
+
+            if (_mode == TopOfTankMode)
+            {
+                float yaw = playerTank != null ? playerTank.eulerAngles.y : transform.eulerAngles.y;
+                return Quaternion.Euler(topOfTankPitch, yaw, 0f);
+            }
+
+            return transform.rotation;
+        }
+
+        private Transform GetMuzzleTransform()
+        {
+            if (_playerTankController != null && _playerTankController.FirePoint != null)
+            {
+                return _playerTankController.FirePoint;
+            }
+
+            return playerTurret;
         }
 
         private void SnapToCurrentModeTarget()
         {
             transform.position = GetTargetPosition();
-
-            if (_mode == TopDownMode)
+            Quaternion targetRotation = GetTargetRotation();
+            if (targetRotation != Quaternion.identity)
             {
-                transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            }
-            else
-            {
-                Quaternion targetRotation = GetFirstPersonRotation();
-                if (targetRotation != Quaternion.identity)
-                {
-                    transform.rotation = targetRotation;
-                }
+                transform.rotation = targetRotation;
             }
         }
 
@@ -234,22 +312,14 @@ namespace TankRoyale.Gameplay
                 return;
             }
 
-            if (playerTank != null)
-            {
-                _yaw = playerTank.eulerAngles.y;
-            }
-            else
-            {
-                _yaw = transform.eulerAngles.y;
-            }
-
+            _yaw = playerTank != null ? playerTank.eulerAngles.y : transform.eulerAngles.y;
             _pitch = Mathf.Clamp(_pitch, minPitch, maxPitch);
             _lookInitialized = true;
         }
 
         private void HandleMouseLook()
         {
-            if (_mode != ShoulderMode && _mode != CockpitMode)
+            if (_mode != InTankMode)
             {
                 if (Cursor.lockState == CursorLockMode.Locked && lockCursorInFirstPerson)
                 {
@@ -277,14 +347,82 @@ namespace TankRoyale.Gameplay
             _pitch = Mathf.Clamp(_pitch + pitchDelta, minPitch, maxPitch);
         }
 
+        private void HandleWorldExplorerInput()
+        {
+            if (!_worldLookInitialized)
+            {
+                _worldYaw = transform.eulerAngles.y;
+                _worldPitch = NormalizePitch(transform.eulerAngles.x);
+                _worldLookInitialized = true;
+            }
+
+            float speed = worldMoveSpeed * (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? worldFastMultiplier : 1f);
+
+            int right = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1 : 0;
+            int left = (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1 : 0;
+            int forward = (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1 : 0;
+            int back = (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1 : 0;
+            int up = (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.PageUp) || Input.GetKey(KeyCode.Space)) ? 1 : 0;
+            int down = (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.PageDown)) ? 1 : 0;
+
+            Vector3 move = transform.forward * (forward - back)
+                         + transform.right * (right - left)
+                         + Vector3.up * (up - down);
+
+            if (move.sqrMagnitude > 1f)
+            {
+                move.Normalize();
+            }
+
+            transform.position += move * (speed * Time.deltaTime);
+
+            bool allowLook = Input.GetMouseButton(1) || lockCursorInFirstPerson;
+            if (allowLook)
+            {
+                if (lockCursorInFirstPerson)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
+
+                _worldYaw += Input.GetAxisRaw("Mouse X") * worldLookSensitivity;
+                _worldPitch = Mathf.Clamp(_worldPitch - Input.GetAxisRaw("Mouse Y") * worldLookSensitivity, -89f, 89f);
+                transform.rotation = Quaternion.Euler(_worldPitch, _worldYaw, 0f);
+            }
+            else
+            {
+                if (Cursor.lockState == CursorLockMode.Locked)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+            }
+        }
+
+        private static float NormalizePitch(float pitch)
+        {
+            float p = pitch;
+            while (p > 180f) p -= 360f;
+            while (p < -180f) p += 360f;
+            return Mathf.Clamp(p, -89f, 89f);
+        }
+
         private void OnGUI()
         {
-            if (_mode != CockpitMode || !showCockpitTargetOverlay)
+            EnsureOverlayPixel();
+
+            GUIStyle labelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = 14,
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = Color.white }
+            };
+            GUI.Label(new Rect(12f, 10f, 520f, 24f), "CAMERA: " + GetModeName(_mode) + " (Tab to cycle)", labelStyle);
+
+            if (_mode != InTankMode || !showCockpitTargetOverlay)
             {
                 return;
             }
-
-            EnsureOverlayPixel();
 
             float cx = Screen.width * 0.5f;
             float cy = Screen.height * 0.5f;
@@ -295,6 +433,19 @@ namespace TankRoyale.Gameplay
             DrawRect(cx - overlayThickness * 0.5f, cy - overlaySize * 0.5f, overlayThickness, overlaySize);
 
             GUI.color = old;
+        }
+
+        private static string GetModeName(int mode)
+        {
+            switch (mode)
+            {
+                case InTankMode: return "IN_TANK";
+                case StareDownMuzzleMode: return "STARE_DOWN_MUZZLE";
+                case TopOfTankMode: return "TOP_OF_TANK";
+                case OverheadMode: return "OVERHEAD_VIEW";
+                case WorldExplorerMode: return "WORLD_EXPLORER";
+                default: return "UNKNOWN";
+            }
         }
 
         private static void EnsureOverlayPixel()
@@ -316,7 +467,7 @@ namespace TankRoyale.Gameplay
 
         private void OnDisable()
         {
-            if (Cursor.lockState == CursorLockMode.Locked && lockCursorInFirstPerson)
+            if (Cursor.lockState == CursorLockMode.Locked)
             {
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;

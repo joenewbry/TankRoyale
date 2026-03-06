@@ -63,6 +63,13 @@ namespace TankRoyale.Gameplay
         [SerializeField] private bool invertRightTreadRotation = true;
         [SerializeField] private Vector3 treadSpinAxis = new Vector3(1f, 0f, 0f);
 
+        [Header("Trajectory Line")]
+        [SerializeField] private bool showTrajectoryLine = true;
+        [SerializeField] private int trajectorySegments = 24;
+        [SerializeField] private float trajectoryStepSeconds = 0.08f;
+        [SerializeField] private float trajectoryLineWidth = 0.03f;
+        [SerializeField] private Color trajectoryLineColor = new Color(1f, 0.8f, 0.2f, 0.9f);
+
         [Header("Health")]
         [SerializeField] private int maxHealth = 3;
 
@@ -84,6 +91,8 @@ namespace TankRoyale.Gameplay
         private Animator[] _treadAnimators = new Animator[0];
         private float _leftTreadSpinVelocity;
         private float _rightTreadSpinVelocity;
+        private LineRenderer _trajectoryLine;
+        private static Material _trajectoryLineMaterial;
 
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
@@ -141,6 +150,7 @@ namespace TankRoyale.Gameplay
             turret = ResolveTurretTransform();
             firePoint = ResolveFirePointTransform();
             InitializeTurretAimState();
+            EnsureTrajectoryLine();
         }
 
         private void Update()
@@ -148,6 +158,7 @@ namespace TankRoyale.Gameplay
             ReadMovementInput();
             RotateTurretToMouse();
             UpdateTreadVisuals();
+            UpdateTrajectoryLine();
             HandleFireInput();
         }
 
@@ -211,10 +222,10 @@ namespace TankRoyale.Gameplay
 
             if (useDigitalTankInput)
             {
-                int right = Input.GetKey(KeyCode.D) ? 1 : 0;
-                int left = Input.GetKey(KeyCode.A) ? 1 : 0;
-                int up = Input.GetKey(KeyCode.W) ? 1 : 0;
-                int down = Input.GetKey(KeyCode.S) ? 1 : 0;
+                int right = (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) ? 1 : 0;
+                int left = (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) ? 1 : 0;
+                int up = (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) ? 1 : 0;
+                int down = (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) ? 1 : 0;
                 x = right - left;
                 y = up - down;
             }
@@ -731,6 +742,7 @@ namespace TankRoyale.Gameplay
                 Animator a = t.GetComponent<Animator>();
                 if (a != null && !animators.Contains(a))
                 {
+                    a.applyRootMotion = false;
                     animators.Add(a);
                 }
             }
@@ -748,6 +760,7 @@ namespace TankRoyale.Gameplay
             float throttle = _moveInput.y;
             float turn = _moveInput.x;
             float speed = _planarVelocity.magnitude;
+            bool driveMoving = Mathf.Abs(throttle) > 0.01f;
             float leftTrack = leftInput;
             float rightTrack = rightInput;
 
@@ -755,6 +768,8 @@ namespace TankRoyale.Gameplay
             {
                 Animator a = _treadAnimators[i];
                 if (a == null || !a.isActiveAndEnabled) continue;
+                a.applyRootMotion = false;
+                a.speed = driveMoving ? 1f : 0f;
 
                 // Set common names; only existing params are used.
                 TrySetAnimatorFloat(a, "Throttle", throttle);
@@ -763,6 +778,8 @@ namespace TankRoyale.Gameplay
                 TrySetAnimatorFloat(a, "Move", throttle);
                 TrySetAnimatorFloat(a, "LeftTrack", leftTrack);
                 TrySetAnimatorFloat(a, "RightTrack", rightTrack);
+                TrySetAnimatorFloat(a, "Direction", throttle);
+                TrySetAnimatorFloat(a, "Forward", driveMoving ? 1f : 0f);
             }
         }
 
@@ -778,6 +795,98 @@ namespace TankRoyale.Gameplay
                     animator.SetFloat(paramName, value);
                     return;
                 }
+            }
+        }
+
+        private void EnsureTrajectoryLine()
+        {
+            if (_trajectoryLine != null)
+            {
+                return;
+            }
+
+            GameObject lineGo = new GameObject("TrajectoryLine");
+            lineGo.transform.SetParent(transform, false);
+            _trajectoryLine = lineGo.AddComponent<LineRenderer>();
+            _trajectoryLine.useWorldSpace = true;
+            _trajectoryLine.loop = false;
+            _trajectoryLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _trajectoryLine.receiveShadows = false;
+            _trajectoryLine.textureMode = LineTextureMode.Stretch;
+            _trajectoryLine.numCornerVertices = 2;
+            _trajectoryLine.numCapVertices = 2;
+
+            if (_trajectoryLineMaterial == null)
+            {
+                Shader shader = Shader.Find("Sprites/Default");
+                if (shader == null)
+                {
+                    shader = Shader.Find("Unlit/Color");
+                }
+
+                _trajectoryLineMaterial = new Material(shader);
+            }
+
+            _trajectoryLine.sharedMaterial = _trajectoryLineMaterial;
+            _trajectoryLine.enabled = false;
+        }
+
+        private void UpdateTrajectoryLine()
+        {
+            if (_trajectoryLine == null)
+            {
+                EnsureTrajectoryLine();
+            }
+
+            if (_trajectoryLine == null)
+            {
+                return;
+            }
+
+            if (!showTrajectoryLine || _weaponController == null || firePoint == null)
+            {
+                _trajectoryLine.enabled = false;
+                return;
+            }
+
+            int segments = Mathf.Max(2, trajectorySegments);
+            float step = Mathf.Max(0.01f, trajectoryStepSeconds);
+
+            _trajectoryLine.enabled = true;
+            _trajectoryLine.positionCount = segments;
+            _trajectoryLine.startColor = trajectoryLineColor;
+            _trajectoryLine.endColor = trajectoryLineColor;
+            _trajectoryLine.startWidth = trajectoryLineWidth;
+            _trajectoryLine.endWidth = trajectoryLineWidth;
+
+            Vector3 pos = firePoint.position;
+            Vector3 vel = _weaponController.GetLaunchVelocity(firePoint);
+            Vector3 gravity = _weaponController.UseBallisticArc ? Physics.gravity : Vector3.zero;
+
+            _trajectoryLine.SetPosition(0, pos);
+            int used = 1;
+
+            for (int i = 1; i < segments; i++)
+            {
+                Vector3 next = pos + vel * step + 0.5f * gravity * (step * step);
+                Vector3 segment = next - pos;
+                RaycastHit hit;
+                if (Physics.Raycast(pos, segment.normalized, out hit, segment.magnitude, ~0, QueryTriggerInteraction.Ignore) && !IsSelfCollider(hit.collider))
+                {
+                    _trajectoryLine.SetPosition(i, hit.point);
+                    used = i + 1;
+                    break;
+                }
+
+                _trajectoryLine.SetPosition(i, next);
+                used = i + 1;
+                vel += gravity * step;
+                pos = next;
+            }
+
+            if (used < segments)
+            {
+                _trajectoryLine.positionCount = used;
             }
         }
 

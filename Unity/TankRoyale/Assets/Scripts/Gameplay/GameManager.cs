@@ -16,6 +16,7 @@ namespace TankRoyale.Gameplay
         [Header("Game Settings")]
         [SerializeField] private float gameOverDelay = 1.5f;
         [SerializeField] private string mainMenuScene = "MainMenu";
+        [SerializeField] private KeyCode resetHotkey = KeyCode.R;
 
         // Runtime references (found on Start)
         private TankController _playerTank;
@@ -44,6 +45,7 @@ namespace TankRoyale.Gameplay
 
         // ── Events ────────────────────────────────────────────────────────────
         public event System.Action<int> OnEnemyCountChanged;   // enemies remaining
+        public event System.Action<TankController, string> OnTankDestroyed; // destroyed tank, killer playerId
         public event System.Action OnPlayerWon;
         public event System.Action OnPlayerLost;
 
@@ -56,6 +58,8 @@ namespace TankRoyale.Gameplay
 
         private void Start()
         {
+            EnsureCoreSystems();
+
             // Find tanks by tag
             var playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null) _playerTank = playerObj.GetComponent<TankController>();
@@ -70,6 +74,29 @@ namespace TankRoyale.Gameplay
 
             BuildOverlayUI();
             StartCoroutine(MonitorGame());
+        }
+
+        private void Update()
+        {
+            if (resetHotkey != KeyCode.None && Input.GetKeyDown(resetHotkey))
+            {
+                RestartGame();
+            }
+        }
+
+        private void EnsureCoreSystems()
+        {
+            if (FindFirstObjectByType<PowerupManager>() == null)
+            {
+                var go = new GameObject("PowerupManager");
+                go.AddComponent<PowerupManager>();
+            }
+
+            if (FindFirstObjectByType<KillstreakManager>() == null)
+            {
+                var go = new GameObject("KillstreakManager");
+                go.AddComponent<KillstreakManager>();
+            }
         }
 
         // ── Build UI ─────────────────────────────────────────────────────────
@@ -200,6 +227,23 @@ namespace TankRoyale.Gameplay
         }
 
         // ── Actions ───────────────────────────────────────────────────────────
+        public void NotifyTankDestroyed(TankController destroyedTank, string killerPlayerId)
+        {
+            if (destroyedTank == null || _gameOver) return;
+
+            // Fire event for HUD/telemetry.
+            OnTankDestroyed?.Invoke(destroyedTank, killerPlayerId);
+
+            // Register killstreak only for non-empty killer ids.
+            if (!string.IsNullOrWhiteSpace(killerPlayerId))
+            {
+                KillstreakManager.Instance?.RegisterKill(killerPlayerId);
+            }
+
+            // Update enemy counter eagerly so HUD feels responsive.
+            OnEnemyCountChanged?.Invoke(EnemiesRemaining);
+        }
+
         public void RestartGame()
         {
             _gameOver = false;
