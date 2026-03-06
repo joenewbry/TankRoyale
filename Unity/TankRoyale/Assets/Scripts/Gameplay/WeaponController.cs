@@ -14,6 +14,7 @@ namespace TankRoyale.Gameplay
     {
         [Header("Projectile")]
         [SerializeField] private GameObject projectilePrefab;
+        [SerializeField] private GameObject missilePrefab;
         [SerializeField] private float fireRate = 0.15f;
         [SerializeField] private float bulletSpeed = 20f;
         [SerializeField] private bool useBallisticArc = false;
@@ -35,19 +36,28 @@ namespace TankRoyale.Gameplay
         [Header("Powerups")]
         [SerializeField] private PowerupManager powerupManager;
         [SerializeField] private bool bounceProjectilesByDefault = true;
+        [SerializeField] private float missileFireRate = 0.5f;
+        [SerializeField] private float missileSpeed = 14f;
+        [SerializeField] private int missileCapacity = 8;
+        [SerializeField] private bool missilesExplodeOnHit = true;
 
         private TankController _tankController;
         private float _nextFireTime;
+        private float _nextMissileFireTime;
+        private int _missilesRemaining;
         private static PhysicsMaterial _bouncyProjectileMaterial;
         private Camera _cachedAimCamera;
 
         public float BulletSpeed => bulletSpeed;
         public bool UseBallisticArc => useBallisticArc && !forceStraightShots;
         public float LaunchAngleDegrees => launchAngleDegrees;
+        public int MissilesRemaining => _missilesRemaining;
+        public int MissileCapacity => Mathf.Max(0, missileCapacity);
 
         private void Awake()
         {
             _tankController = GetComponent<TankController>();
+            _missilesRemaining = Mathf.Max(0, missileCapacity);
 
             if (powerupManager == null)
             {
@@ -96,6 +106,33 @@ namespace TankRoyale.Gameplay
             _tankController.ApplyRecoil(recoilImpulse * (doubleBarrel ? 1.2f : 1f));
             TryPlayShotSfx();
             _nextFireTime = Time.time + Mathf.Max(0.01f, fireRate);
+        }
+
+        public void FireMissile()
+        {
+            if (Time.time < _nextMissileFireTime)
+            {
+                return;
+            }
+
+            if (_tankController == null)
+            {
+                _tankController = GetComponent<TankController>();
+            }
+
+            if (_tankController == null || _tankController.FirePoint == null)
+            {
+                return;
+            }
+
+            if (_missilesRemaining <= 0)
+            {
+                return;
+            }
+
+            _missilesRemaining = Mathf.Max(0, _missilesRemaining - 1);
+            SpawnMissile(_tankController.PlayerId);
+            _nextMissileFireTime = Time.time + Mathf.Max(0.05f, missileFireRate);
         }
 
         private void SpawnProjectile(string playerId, float localRightOffset, bool explosiveRounds)
@@ -157,6 +194,75 @@ namespace TankRoyale.Gameplay
             }
 
             ApplyProjectileVisualColor(projectileObject, projectileComponent != null ? projectileComponent.PaintColor : GetRandomPaintColor());
+        }
+
+        private void SpawnMissile(string playerId)
+        {
+            Transform firePoint = _tankController.FirePoint;
+            Vector3 spawnPos = GetProjectileSpawnPosition(firePoint, 0f);
+            Quaternion spawnRot = firePoint != null ? firePoint.rotation : transform.rotation;
+
+            GameObject missileObject = missilePrefab != null
+                ? Instantiate(missilePrefab, spawnPos, spawnRot)
+                : CreateFallbackMissileProjectile(spawnPos, spawnRot);
+
+            if (missileObject == null)
+            {
+                return;
+            }
+
+            Rigidbody rb = missileObject.GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                rb = missileObject.AddComponent<Rigidbody>();
+            }
+
+            rb.isKinematic = false;
+            rb.useGravity = false;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            rb.mass = 0.14f;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.linearVelocity = GetTargetingLaunchDirection(firePoint != null ? firePoint : transform) * missileSpeed;
+
+            Collider collider = missileObject.GetComponent<Collider>();
+            if (collider == null)
+            {
+                SphereCollider generated = missileObject.AddComponent<SphereCollider>();
+                generated.radius = 0.14f;
+                collider = generated;
+            }
+
+            if (collider != null)
+            {
+                collider.material = GetBouncyProjectileMaterial();
+                IgnoreOwnerCollisions(missileObject);
+            }
+
+            Projectile projectile = missileObject.GetComponent<Projectile>();
+            if (projectile == null)
+            {
+                projectile = missileObject.AddComponent<Projectile>();
+            }
+
+            projectile.shooterPlayerId = playerId;
+            projectile.SetShooterRoot(_tankController != null ? _tankController.transform : null);
+            projectile.isRicochet = false;
+            projectile.isBlockBreaker = false;
+            projectile.isExplosive = missilesExplodeOnHit;
+            projectile.SetPaintColor(new Color(1f, 0.5f, 0.12f, 1f));
+
+            ApplyProjectileVisualColor(missileObject, new Color(1f, 0.6f, 0.2f, 1f));
+            _tankController.ApplyRecoil(recoilImpulse * 1.45f);
+            TryPlayShotSfx();
+        }
+
+        private GameObject CreateFallbackMissileProjectile(Vector3 position, Quaternion rotation)
+        {
+            GameObject missile = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            missile.name = "Projectile_Missile";
+            missile.transform.SetPositionAndRotation(position, rotation);
+            missile.transform.localScale = new Vector3(0.18f, 0.34f, 0.18f);
+            return missile;
         }
 
         private GameObject CreateFallbackSphereProjectile(Vector3 position, Quaternion rotation)

@@ -483,6 +483,15 @@ namespace TankRoyale.Gameplay
                 return Vector3.up;
             }
 
+            if (_playerTankController != null)
+            {
+                Vector3 groundNormal = _playerTankController.CurrentGroundNormal;
+                if (groundNormal.sqrMagnitude > 0.0001f)
+                {
+                    return Vector3.Slerp(Vector3.up, groundNormal.normalized, 0.8f).normalized;
+                }
+            }
+
             Vector3 tankUp = playerTank.up.sqrMagnitude > 0.0001f ? playerTank.up.normalized : Vector3.up;
             return Vector3.Slerp(Vector3.up, tankUp, 0.75f).normalized;
         }

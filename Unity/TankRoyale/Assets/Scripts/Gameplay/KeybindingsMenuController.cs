@@ -46,7 +46,8 @@ namespace TankRoyale.Gameplay
             GUILayout.Label("W/S or Up/Down: Forward / Backward");
             GUILayout.Label("A/D or Left/Right: Turn Left / Right");
             GUILayout.Label("Space (Jump): Jump");
-            GUILayout.Label("Mouse Left (Fire): Shoot");
+            GUILayout.Label("Mouse Left (Fire): Shoot bullet (when not building)");
+            GUILayout.Label("Mouse Right (Fire): Shoot missile (when not building)");
             GUILayout.Label("B (Reset): Reset player position to spawn");
 
             GUILayout.Space(8f);

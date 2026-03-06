@@ -52,6 +52,12 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float maxSlopeTiltAngle = 34f;
         [SerializeField] private float slopeTiltResponsiveness = 12f;
         [SerializeField] private float groundSampleRadius = 0.58f;
+        [SerializeField] private float rampGripAcceleration = 14f;
+        [SerializeField] private float rampGripNormalMinY = 0.28f;
+        [SerializeField] private float rampGripNormalMaxY = 0.96f;
+        [SerializeField] private float rampProbeForwardOffset = 0.78f;
+        [SerializeField] private float rampProbeHeight = 0.9f;
+        [SerializeField] private float rampProbeDownDistance = 1.8f;
 
         [Header("Rotation")]
         [SerializeField] private float rotationSpeed = 420f;
@@ -131,6 +137,7 @@ namespace TankRoyale.Gameplay
         public int MaxHealth => maxHealth;
         public float CurrentSpeed => _planarVelocity.magnitude;
         public float CurrentSlopeAngle => Vector3.Angle(_groundNormal, Vector3.up);
+        public Vector3 CurrentGroundNormal => _groundNormal;
         public float ProjectileImpactStrength => projectileImpactStrength;
         public float CurrentTurnInput => _moveInput.x;
         public Vector3 AimForward
@@ -263,6 +270,11 @@ namespace TankRoyale.Gameplay
                 _weaponController.Fire();
             }
 
+            if (Input.GetMouseButtonDown(1) && _weaponController != null && !BuildModeController.IsBuildModeActive)
+            {
+                _weaponController.FireMissile();
+            }
+
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 _jumpRequested = true;
@@ -337,6 +349,7 @@ namespace TankRoyale.Gameplay
             Vector3 projectedPosition = _rigidbody.position + new Vector3(_planarVelocity.x, 0f, _planarVelocity.z) * Time.fixedDeltaTime;
             Vector3 groundNormal;
             float groundY = SampleGroundHeight(projectedPosition, out groundNormal);
+            ApplyRampGrip(basis, throttle, hasThrottleInput, ref groundY, ref groundNormal);
             _groundNormal = groundNormal.sqrMagnitude > 0.0001f ? groundNormal.normalized : Vector3.up;
             float slopeAngle = Vector3.Angle(groundNormal, Vector3.up);
             float slopeFactor = Mathf.InverseLerp(0f, Mathf.Max(1f, maxClimbSlopeAngle), slopeAngle);
@@ -455,6 +468,55 @@ namespace TankRoyale.Gameplay
             }
             _rigidbody.MovePosition(targetPosition);
             _wasGrounded = grounded;
+        }
+
+        private void ApplyRampGrip(Transform basis, float throttle, bool hasThrottleInput, ref float groundY, ref Vector3 groundNormal)
+        {
+            if (!hasThrottleInput || basis == null || Mathf.Abs(throttle) < 0.01f)
+            {
+                return;
+            }
+
+            Vector3 planarForward = basis.forward;
+            planarForward.y = 0f;
+            if (planarForward.sqrMagnitude <= 0.0001f)
+            {
+                return;
+            }
+
+            planarForward.Normalize();
+            float sign = Mathf.Sign(throttle);
+            Vector3 probeOrigin = _rigidbody.position
+                                + (planarForward * (rampProbeForwardOffset * sign))
+                                + Vector3.up * Mathf.Max(0.2f, rampProbeHeight);
+
+            if (!Physics.Raycast(probeOrigin, Vector3.down, out RaycastHit hit, Mathf.Max(0.2f, rampProbeDownDistance), ~0, QueryTriggerInteraction.Ignore))
+            {
+                return;
+            }
+
+            if (hit.collider == null || IsSelfCollider(hit.collider))
+            {
+                return;
+            }
+
+            Vector3 hitNormal = hit.normal.sqrMagnitude > 0.0001f ? hit.normal.normalized : Vector3.up;
+            if (hitNormal.y < rampGripNormalMinY || hitNormal.y > rampGripNormalMaxY)
+            {
+                return;
+            }
+
+            Vector3 moveDir = planarForward * sign;
+            Vector3 alongSlope = Vector3.ProjectOnPlane(moveDir, hitNormal);
+            alongSlope.y = 0f;
+            if (alongSlope.sqrMagnitude > 0.0001f)
+            {
+                alongSlope.Normalize();
+                _planarVelocity += alongSlope * (rampGripAcceleration * Time.fixedDeltaTime * Mathf.Abs(throttle));
+            }
+
+            groundY = Mathf.Max(groundY, hit.point.y + groundSnapHeight);
+            groundNormal = Vector3.Slerp(groundNormal, hitNormal, 0.65f);
         }
 
         private bool TryGetStepClimbTargetY(Transform basis, float throttle, bool hasThrottleInput, out float targetY)
