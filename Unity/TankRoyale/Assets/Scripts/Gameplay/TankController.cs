@@ -58,6 +58,10 @@ namespace TankRoyale.Gameplay
         [Header("Camera Feel")]
         [SerializeField] private bool useMouseForTurretAim = true;
 
+        [Header("Debug Input Logging")]
+        [SerializeField] private bool logMouseTurretInput = false;
+        [SerializeField] private float mouseLogIntervalSeconds = 0.12f;
+
         [Header("Treads")]
         [SerializeField] private bool animateTreads = true;
         [SerializeField] private bool syncDetachedTreadsToBody = true;
@@ -105,6 +109,7 @@ namespace TankRoyale.Gameplay
         private float _rightTreadSpinVelocity;
         private LineRenderer _trajectoryLine;
         private static Material _trajectoryLineMaterial;
+        private float _nextMouseLogTime;
 
         public Transform FirePoint => firePoint;
         public string PlayerId => string.IsNullOrWhiteSpace(playerId) ? gameObject.name : playerId;
@@ -567,6 +572,18 @@ namespace TankRoyale.Gameplay
 
             Quaternion targetWorld = Quaternion.Euler(_turretPitch, _turretYaw, 0f);
             turret.rotation = Quaternion.RotateTowards(turret.rotation, targetWorld, turretRotationSpeed * Time.deltaTime);
+
+            if (logMouseTurretInput && Time.unscaledTime >= _nextMouseLogTime)
+            {
+                float mouseX = Input.GetAxisRaw("Mouse X");
+                float mouseY = Input.GetAxisRaw("Mouse Y");
+                _nextMouseLogTime = Time.unscaledTime + Mathf.Max(0.02f, mouseLogIntervalSeconds);
+                Debug.Log(
+                    $"[TurretMouse] mx={mouseX:0.000} my={mouseY:0.000} " +
+                    $"look=({lookForward.x:0.000},{lookForward.y:0.000},{lookForward.z:0.000}) " +
+                    $"targetYaw={targetYaw:0.00} targetPitch={targetPitch:0.00} " +
+                    $"stateYaw={_turretYaw:0.00} statePitch={_turretPitch:0.00}");
+            }
         }
 
         private Transform ResolveBodyTransform()

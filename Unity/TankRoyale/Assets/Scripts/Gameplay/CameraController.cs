@@ -38,8 +38,9 @@ namespace TankRoyale.Gameplay
         [SerializeField] private float muzzleViewHeight = 0.45f;
 
         [Header("TOP_OF_TANK")]
-        [SerializeField] private Vector3 topOfTankLocalOffset = new Vector3(0f, 2.4f, -0.2f);
+        [SerializeField] private Vector3 topOfTankLocalOffset = new Vector3(0f, 5.2f, -2.6f);
         [SerializeField] private float topOfTankPitch = 75f;
+        [SerializeField] private float topOfTankFollowSpeed = 14f;
 
         [Header("OVERHEAD_VIEW")]
         [SerializeField] private float overheadHeight = 20f;
@@ -78,6 +79,7 @@ namespace TankRoyale.Gameplay
         private bool _worldLookInitialized;
 
         private TankController _playerTankController;
+        private Rigidbody _playerTankRigidbody;
 
         private static Texture2D _overlayPixel;
         public bool IsInTankMode => _mode == InTankMode;
@@ -137,11 +139,12 @@ namespace TankRoyale.Gameplay
 
             Vector3 targetPosition = GetTargetPosition();
             Quaternion targetRotation = GetTargetRotation();
+            float activeFollowSpeed = _mode == TopOfTankMode ? topOfTankFollowSpeed : followSpeed;
 
-            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * followSpeed);
+            transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * activeFollowSpeed);
             if (targetRotation != Quaternion.identity)
             {
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * followSpeed);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * activeFollowSpeed);
             }
         }
 
@@ -160,6 +163,11 @@ namespace TankRoyale.Gameplay
             if (_playerTankController == null && playerTank != null)
             {
                 _playerTankController = playerTank.GetComponent<TankController>();
+            }
+
+            if (_playerTankRigidbody == null && playerTank != null)
+            {
+                _playerTankRigidbody = playerTank.GetComponent<Rigidbody>();
             }
 
             if (playerTurret == null && playerTank != null)
@@ -257,7 +265,11 @@ namespace TankRoyale.Gameplay
             {
                 if (playerTank != null)
                 {
-                    return playerTank.TransformPoint(topOfTankLocalOffset);
+                    Vector3 anchor = _playerTankRigidbody != null ? _playerTankRigidbody.worldCenterOfMass : playerTank.position;
+                    return anchor
+                         + playerTank.right * topOfTankLocalOffset.x
+                         + Vector3.up * topOfTankLocalOffset.y
+                         + playerTank.forward * topOfTankLocalOffset.z;
                 }
 
                 return transform.position;

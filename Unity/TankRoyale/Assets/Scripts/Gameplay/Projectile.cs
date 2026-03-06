@@ -45,6 +45,7 @@ namespace TankRoyale.Gameplay
         private bool _positionInitialized;
         private Color _paintColor;
         public Color PaintColor => _paintColor;
+        private static Texture2D _splatTexture;
 
         private void Awake()
         {
@@ -368,33 +369,7 @@ namespace TankRoyale.Gameplay
                 normal = Vector3.up;
             }
 
-            GameObject splat = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            splat.name = "PaintSplat";
-            if (parent != null)
-            {
-                splat.transform.SetParent(parent, true);
-            }
-
-            float size = Random.Range(minSplatterSize, maxSplatterSize);
-            splat.transform.position = point + normal * splatterSurfaceOffset;
-            splat.transform.rotation = Quaternion.LookRotation(normal, Vector3.up) * Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
-            splat.transform.localScale = new Vector3(size, size, size);
-
-            Collider c = splat.GetComponent<Collider>();
-            if (c != null)
-            {
-                Destroy(c);
-            }
-
-            MeshRenderer renderer = splat.GetComponent<MeshRenderer>();
-            if (renderer != null)
-            {
-                renderer.sharedMaterial = GetSplatterMaterial(_paintColor);
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
-            }
-
-            Destroy(splat, splatterLifetime);
+            SpawnSplatCluster(point, normal, parent);
         }
 
         private void SpawnPaintSplat(Vector3 point, Vector3 normal, Transform parent)
@@ -409,6 +384,32 @@ namespace TankRoyale.Gameplay
                 normal = Vector3.up;
             }
 
+            SpawnSplatCluster(point, normal, parent);
+        }
+
+        private void SpawnSplatCluster(Vector3 point, Vector3 normal, Transform parent)
+        {
+            int droplets = Random.Range(3, 6);
+            for (int i = 0; i < droplets; i++)
+            {
+                float spread = i == 0 ? 0f : Random.Range(0.01f, 0.07f);
+                Vector3 tangent = Vector3.Cross(normal, Vector3.up);
+                if (tangent.sqrMagnitude < 0.0001f)
+                {
+                    tangent = Vector3.Cross(normal, Vector3.right);
+                }
+                tangent.Normalize();
+                Vector3 bitangent = Vector3.Cross(normal, tangent).normalized;
+                Vector2 jitter = Random.insideUnitCircle * spread;
+                Vector3 offset = tangent * jitter.x + bitangent * jitter.y;
+
+                float size = Random.Range(minSplatterSize, maxSplatterSize) * (i == 0 ? 1f : Random.Range(0.25f, 0.6f));
+                CreateSingleSplat(point + offset, normal, parent, size);
+            }
+        }
+
+        private void CreateSingleSplat(Vector3 point, Vector3 normal, Transform parent, float size)
+        {
             GameObject splat = GameObject.CreatePrimitive(PrimitiveType.Quad);
             splat.name = "PaintSplat";
             if (parent != null)
@@ -416,10 +417,10 @@ namespace TankRoyale.Gameplay
                 splat.transform.SetParent(parent, true);
             }
 
-            float size = Random.Range(minSplatterSize, maxSplatterSize);
             splat.transform.position = point + normal * splatterSurfaceOffset;
             splat.transform.rotation = Quaternion.LookRotation(normal, Vector3.up) * Quaternion.Euler(0f, 0f, Random.Range(0f, 360f));
-            splat.transform.localScale = new Vector3(size, size, size);
+            float stretch = Random.Range(0.75f, 1.35f);
+            splat.transform.localScale = new Vector3(size * stretch, size / stretch, size);
 
             Collider c = splat.GetComponent<Collider>();
             if (c != null)
@@ -494,10 +495,14 @@ namespace TankRoyale.Gameplay
 
         private Material GetSplatterMaterial(Color color)
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            Shader shader = Shader.Find("Sprites/Default");
             if (shader == null)
             {
-                shader = Shader.Find("Unlit/Color");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            }
+            if (shader == null)
+            {
+                shader = Shader.Find("Unlit/Transparent");
             }
             if (shader == null)
             {
@@ -506,8 +511,46 @@ namespace TankRoyale.Gameplay
 
             Material material = new Material(shader);
             material.color = color;
+            material.mainTexture = GetSplatTexture();
 
             return material;
+        }
+
+        private static Texture2D GetSplatTexture()
+        {
+            if (_splatTexture != null)
+            {
+                return _splatTexture;
+            }
+
+            const int size = 64;
+            _splatTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            _splatTexture.wrapMode = TextureWrapMode.Clamp;
+            _splatTexture.filterMode = FilterMode.Bilinear;
+
+            Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+            float radius = size * 0.42f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
+                    float d = Vector2.Distance(p, center);
+                    float radial = 1f - Mathf.Clamp01(d / radius);
+
+                    // Add blob noise to break circular silhouette.
+                    float nx = Mathf.PerlinNoise(x * 0.13f, y * 0.13f);
+                    float ny = Mathf.PerlinNoise((x + 23) * 0.09f, (y + 41) * 0.11f);
+                    float noise = (nx * 0.65f) + (ny * 0.35f);
+
+                    float alpha = Mathf.Clamp01((radial * radial * 1.25f) + (noise - 0.45f) * 0.6f);
+                    alpha = Mathf.SmoothStep(0f, 1f, alpha);
+                    _splatTexture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            _splatTexture.Apply(false, true);
+            return _splatTexture;
         }
 
         private void OnDrawGizmosSelected()
