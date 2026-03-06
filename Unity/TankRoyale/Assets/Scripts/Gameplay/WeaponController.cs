@@ -136,7 +136,7 @@ namespace TankRoyale.Gameplay
             if (collider != null)
             {
                 collider.material = GetBouncyProjectileMaterial();
-                IgnoreOwnerCollisions(collider);
+                IgnoreOwnerCollisions(projectileObject);
             }
 
             Projectile projectileComponent = projectileObject.GetComponent<Projectile>();
@@ -148,6 +148,7 @@ namespace TankRoyale.Gameplay
             if (projectileComponent != null)
             {
                 projectileComponent.shooterPlayerId = playerId;
+                projectileComponent.SetShooterRoot(_tankController != null ? _tankController.transform : null);
                 projectileComponent.isRicochet = bounceProjectilesByDefault || IsPowerupActive(playerId, PowerupManager.RicochetPowerup);
                 projectileComponent.isBlockBreaker = IsPowerupActive(playerId, PowerupManager.BlockbreakerPowerup);
                 projectileComponent.isExplosive = explosiveRounds;
@@ -237,23 +238,38 @@ namespace TankRoyale.Gameplay
             return powerupManager != null && powerupManager.IsPowerupActive(playerId, powerupKey);
         }
 
-        private void IgnoreOwnerCollisions(Collider projectileCollider)
+        private void IgnoreOwnerCollisions(GameObject projectileObject)
         {
-            if (projectileCollider == null || _tankController == null)
+            if (projectileObject == null || _tankController == null)
+            {
+                return;
+            }
+
+            Collider[] projectileColliders = projectileObject.GetComponentsInChildren<Collider>(true);
+            if (projectileColliders == null || projectileColliders.Length == 0)
             {
                 return;
             }
 
             Collider[] ownerColliders = _tankController.GetComponentsInChildren<Collider>(true);
-            for (int i = 0; i < ownerColliders.Length; i++)
+            for (int p = 0; p < projectileColliders.Length; p++)
             {
-                Collider ownerCollider = ownerColliders[i];
-                if (ownerCollider == null || ownerCollider == projectileCollider)
+                Collider projectileCollider = projectileColliders[p];
+                if (projectileCollider == null)
                 {
                     continue;
                 }
 
-                Physics.IgnoreCollision(projectileCollider, ownerCollider, true);
+                for (int i = 0; i < ownerColliders.Length; i++)
+                {
+                    Collider ownerCollider = ownerColliders[i];
+                    if (ownerCollider == null || ownerCollider == projectileCollider)
+                    {
+                        continue;
+                    }
+
+                    Physics.IgnoreCollision(projectileCollider, ownerCollider, true);
+                }
             }
         }
 

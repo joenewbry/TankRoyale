@@ -30,6 +30,7 @@ namespace TankRoyale.Gameplay
 
         [Header("Shooter")]
         public string shooterPlayerId;   // Set by WeaponController — prevents self-damage
+        private Transform _shooterRoot;
 
         private Rigidbody _rigidbody;
         private PowerupManager _powerupManager;
@@ -140,6 +141,11 @@ namespace TankRoyale.Gameplay
         private void HandleImpact(Collider hitCollider, Vector3 point, Vector3 normal)
         {
             if (hitCollider == null)
+            {
+                return;
+            }
+
+            if (IsShooterCollider(hitCollider))
             {
                 return;
             }
@@ -461,7 +467,23 @@ namespace TankRoyale.Gameplay
         {
             if (collider == null) return true;
             Transform t = collider.transform;
-            return t == transform || t.IsChildOf(transform);
+            return t == transform || t.IsChildOf(transform) || IsShooterCollider(collider);
+        }
+
+        public void SetShooterRoot(Transform shooterRoot)
+        {
+            _shooterRoot = shooterRoot;
+        }
+
+        private bool IsShooterCollider(Collider collider)
+        {
+            if (_shooterRoot == null || collider == null)
+            {
+                return false;
+            }
+
+            Transform t = collider.transform;
+            return t == _shooterRoot || t.IsChildOf(_shooterRoot);
         }
 
         public void SetPaintColor(Color color)
